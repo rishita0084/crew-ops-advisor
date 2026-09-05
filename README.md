@@ -19,57 +19,163 @@ it yourself: `python scripts/audit.py` for the per-question detail,
 
 ---
 
-## Quick start (Windows)
+## Quick start
 
-Two terminals.
+**No API key needed.** The advisor answers every one of the 38 supplied questions with the
+LLM switched off — the language model adds conversational phrasing, not correctness. Set a
+key later if you want it; nothing else changes.
 
-**Backend**
+Prerequisites: **Python 3.11+** and **Node 18+**. Everything runs locally; no cloud account,
+no paid service.
 
-Windows:
+### 1. Backend — two terminals, this is the first
+
+<details open>
+<summary><b>Windows</b></summary>
 
 ```bat
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python scripts\import_data.py          :: JSON -> SQLite, idempotent
-copy .env.example .env                 :: then paste your LLM_API_KEY
-uvicorn app.main:app --reload          :: http://localhost:8000
+copy .env.example .env                 :: leave LLM_API_KEY blank to run without a key
+python scripts\import_data.py          :: JSON -> SQLite, safe to re-run
+uvicorn app.main:app --reload          :: serves http://127.0.0.1:8000
 ```
+</details>
 
-macOS / Linux:
+<details open>
+<summary><b>macOS / Linux</b></summary>
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python scripts/import_data.py          # JSON -> SQLite, idempotent
-cp .env.example .env                   # then paste your LLM_API_KEY
-uvicorn app.main:app --reload          # http://localhost:8000
+cp .env.example .env                   # leave LLM_API_KEY blank to run without a key
+python scripts/import_data.py          # JSON -> SQLite, safe to re-run
+uvicorn app.main:app --reload          # serves http://127.0.0.1:8000
+```
+</details>
+
+Check it came up: <http://127.0.0.1:8000/health> should report 150 crew, 147 flights,
+39 pairings.
+
+### 2. Frontend — second terminal
+
+```bash
+cd frontend
+npm install
+npm run dev                            # http://localhost:5173
 ```
 
-**Frontend**
+**One step you must not skip.** `frontend/.env` is gitignored, and when it is missing the
+console falls back to **recorded fixtures** instead of talking to the backend. The page
+still works, which is exactly what makes it easy to miss. Create it:
+
+<details open>
+<summary><b>Windows</b></summary>
 
 ```bat
 cd frontend
-npm install
-npm run dev                            :: http://localhost:5173
+copy .env.example .env
+```
+</details>
+
+<details open>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+cd frontend
+cp .env.example .env
+```
+</details>
+
+That file contains the two settings that matter:
+
+```ini
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_USE_MOCKS=false
 ```
 
-`frontend/.env` already points at `http://localhost:8000` with `VITE_USE_MOCKS=false`.
+- **`VITE_USE_MOCKS=false`** — call the live engine. Set it to `true` to browse the console
+  with no backend running at all; the fixtures are recorded from the real engine by
+  `scripts/record_fixtures.py`, so they are true answers, just frozen ones.
+- **`VITE_API_BASE_URL`** uses `127.0.0.1`, not `localhost`, deliberately. Vite and uvicorn
+  can end up on different IP stacks — on Windows `localhost` may resolve to IPv6 `::1` while
+  uvicorn listens on IPv4 — and the symptom is a page that loads perfectly and answers
+  nothing.
 
-**Verify**
+Restart `npm run dev` after creating the file; Vite reads env at startup.
+
+### 3. Are you actually connected?
+
+Ask the console *"Who is on reserve at BLR on 2026-09-15?"* and expand **Show evidence**.
+Live answers carry evidence rows citing `reserve_pool.json`. If the panel is empty or the
+answer never changes, you are still on fixtures — check step 2.
+
+### Running it with an LLM (optional)
+
+Put a key in `backend/.env`. Any OpenAI-compatible provider works:
+
+```ini
+LLM_PROVIDER=groq                      # groq | gemini | openai_compat
+LLM_API_KEY=your-key-here
+LLM_MODEL=openai/gpt-oss-120b
+LLM_ENABLED=true
+```
+
+Free keys: [Groq](https://console.groq.com) or
+[Google AI Studio](https://aistudio.google.com) (`LLM_PROVIDER=gemini`,
+`LLM_MODEL=gemini-2.5-flash`). Restart uvicorn afterwards.
+
+With a key, answers are phrased conversationally and take 3–8 seconds. Without one, they are
+terser and land in 10–50 ms. **Both are computed by the same engine and are equally
+correct** — `intent` in the response says which path ran.
+
+### Verify the whole thing
+
+<details open>
+<summary><b>Windows</b></summary>
 
 ```bat
 cd backend
-pytest                                 :: 36 tests
-python scripts\run_scorecard.py        :: 38 questions + 6 scenarios
+pytest                                 :: 38 tests
+python scripts\audit.py                :: all 38 questions, field by field
+python scripts\run_scorecard.py        :: 38 questions + 6 scenarios, summary
 ```
+</details>
 
-The advisor runs with **no LLM key at all** — set `LLM_ENABLED=false` and the
-deterministic router answers instead. Terser, equally correct. That is deliberate; see
-*Failure handling* below.
+<details open>
+<summary><b>macOS / Linux</b></summary>
+
+```bash
+cd backend
+pytest                                 # 38 tests
+python scripts/audit.py                # all 38 questions, field by field
+python scripts/run_scorecard.py        # 38 questions + 6 scenarios, summary
+```
+</details>
+
+None of these need a key — they exercise the deterministic engine, which is the point.
+
+### If something is wrong
+
+| Symptom | Cause |
+|---|---|
+| `No database at .../crew_ops.db` | `scripts/import_data.py` has not been run |
+| Console answers but ignores the backend | `frontend/.env` missing → fixtures. See step 2 |
+| Answers, then "advisor service did not respond" | backend not running, or a `localhost`/`127.0.0.1` mismatch |
+| `Router.__init__() got an unexpected keyword argument` | FastAPI/MCP version clash — install from `requirements.txt`, not one package at a time |
+| Port 5173 or 8000 already in use | an earlier `npm run dev` / `uvicorn` is still alive |
+
+### Also worth knowing
+
+- **`/scorecard`** in the nav runs all 38 questions and 6 scenarios live, in about half a
+  second, and shows the per-case detail.
+- **`/connect`** shows how to reach the same engine from Claude Desktop over MCP, with the
+  config pre-filled for your machine. See [MCP.md](MCP.md).
+- **Light/dark** toggle sits in the top-right; it follows your OS by default.
 
 ---
 
