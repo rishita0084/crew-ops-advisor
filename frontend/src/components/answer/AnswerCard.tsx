@@ -86,10 +86,13 @@ export function AnswerCard({ response }: {response: AdvisorResponse;}) {
         {response.relaxations && response.relaxations.length > 0 &&
         <div className="mt-6">
             <h3 className="mb-1 text-2xs font-semibold uppercase tracking-label text-warning">
-              No fully legal option
+              {response.options && response.options.some((option) => option.legal) ?
+              'Closest misses' :
+              'No fully legal option'}
             </h3>
             <p className="mb-3 text-sm text-fg-muted">
-              The closest misses, and what would have to change for each to become legal.
+              Who came nearest to being usable, and what would have to change for each to
+              become legal. This is how much slack the operation actually has.
             </p>
             <ul className="space-y-3">
               {response.relaxations.map((relaxation, index) =>

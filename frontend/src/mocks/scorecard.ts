@@ -5,8 +5,8 @@
 import type { ScorecardResponse } from '../types/api';
 
 export const mockScorecard: ScorecardResponse = {
-  "generated_at": "2026-09-05T09:56:36+00:00",
-  "total_ms": 574,
+  "generated_at": "2026-09-05T10:52:20+00:00",
+  "total_ms": 498,
   "tiers": [
     {
       "tier": 1,

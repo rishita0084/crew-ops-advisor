@@ -161,14 +161,16 @@ def rank_options(
     for i, option in enumerate(options, start=1):
         option["rank"] = i
 
-    relaxations: list[dict] = []
-    if not legal and not chain_options:
-        from app.engine import relaxation as relaxation_mod
+    # Near-misses are computed ALWAYS, not only when nothing is legal. Knowing that the
+    # next candidate was 15 minutes short tells a controller how much slack the operation
+    # actually has -- which is exactly the judgement they are being asked to make. Gating
+    # this on total failure meant it never spoke on a generously crewed week.
+    from app.engine import relaxation as relaxation_mod
 
-        relaxations = [
-            r.to_dict()
-            for r in relaxation_mod.analyse(repo, days, role, exclude_crew)
-        ]
+    relaxations = [
+        r.to_dict()
+        for r in relaxation_mod.analyse(repo, days, role, exclude_crew, limit=2)
+    ]
 
     return {
         "options": options,

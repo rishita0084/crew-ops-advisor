@@ -224,7 +224,12 @@ def route(repo, question: str) -> ToolResult:
 
         if pairing_id:
             role = _role_for(repo, crew_out, ent)
-            return A.recommend_cover(repo, pairing_id, role, crew_out=crew_out)
+            # "C-1042 is sick and C-3310, C-1526 are already committed" -- the first id
+            # is the vacancy, the rest are crew the controller has already spent
+            committed = {c for c in ent.crew_ids[1:]} if len(ent.crew_ids) > 1 else set()
+            return A.recommend_cover(
+                repo, pairing_id, role, crew_out=crew_out, also_unavailable=committed
+            )
         if crew_out:
             state = BASE_STATE.with_crew_unavailable(crew_out, "sick")
             return A.recover_from_state(repo, state)

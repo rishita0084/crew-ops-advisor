@@ -146,7 +146,7 @@ correct** — `intent` in the response says which path ran.
 
 ```bat
 cd backend
-pytest                                 :: 38 tests
+pytest                                 :: 41 tests
 python scripts\audit.py                :: all 38 questions, field by field
 python scripts\run_scorecard.py        :: 38 questions + 6 scenarios, summary
 ```
@@ -157,7 +157,7 @@ python scripts\run_scorecard.py        :: 38 questions + 6 scenarios, summary
 
 ```bash
 cd backend
-pytest                                 # 38 tests
+pytest                                 # 41 tests
 python scripts/audit.py                # all 38 questions, field by field
 python scripts/run_scorecard.py        # 38 questions + 6 scenarios, summary
 ```
@@ -361,6 +361,29 @@ both themes was checked against WCAG AA.
 
 ---
 
+## What it is worth
+
+Four figures, all computed by the engine rather than asserted.
+
+**A routine sick call saves ₹5,500.** Covering P-2291 with reserve C-3310 costs ₹18,500;
+the next legal option is a day-off callout at ₹24,000. Picking correctly is worth 23% of
+the bill, and a controller under time pressure reaches for whoever answers the phone.
+
+**One station closure avoids ₹2,419,950.** BLR shut for six hours strands 13 legs. Delay
+what the crew's duty survives and re-crew the tail of what it does not: **₹580,050**.
+Cancel the blocked legs instead: **₹3,000,000**. That is a single morning at one station.
+
+**Each answer is 168 legality checks in 12 milliseconds.** Twenty-four candidate captains
+against seven rules, plus cost, positioning and resilience — the cross-referencing a
+controller currently does by hand across rosters, duty clocks, reserve registers and a
+rulebook, while the phone is ringing.
+
+**And every one of them is auditable.** 35 evidence rows behind that single answer, each
+naming its source file. The reason decisions "can't be reviewed, trusted or learned from"
+is that today they leave no trail; this leaves one by construction.
+
+---
+
 ## Known divergence — scenario S4 (our honest failure case)
 
 The brief asks for a case we handle poorly, with analysis. This is the one we argue about.
@@ -394,10 +417,9 @@ still disagrees with its key, for the reason above.
   `valid_from` in the future — a generator artifact. The dataset's own `validate.py`
   ignores `valid_from` too. Enforcing it would fail a quarter of the fleet against a
   roster the dataset guarantees is legal. Documented in `rules/r06_certification.py`.
-- **Chain search and relaxation rarely trigger on this dataset.** Both are gated on
-  scarcity (fewer than three covers, and zero covers, respectively) that a generously
-  crewed synthetic week never reaches. Chain search is additionally bounded at beam 8,
-  depth 3, so a recovery needing four coordinated moves would be missed.
+- **Chain search is bounded** at beam 8, depth 3, so a recovery needing four coordinated
+  moves would be missed. It engages when direct cover drops to two or fewer — which on
+  this generously crewed week means the controller has to say who is already committed.
 - **No precomputed legality matrix.** An earlier draft of this README claimed one. It
   was a performance idea, and the performance never needed it — Tier 3 answers land in
   10–40 ms computing from scratch. The unused table has been removed rather than left
@@ -507,7 +529,7 @@ backend/
   app/api/                FastAPI routes + Pydantic mirrors of the TS contract
   mcp_server/             same tools over MCP
   scripts/                import_data · audit · run_scorecard · record_fixtures
-  tests/                  38 tests
+  tests/                  41 tests
 frontend/src/             React + TS console (types/api.ts is the contract)
 ARCHITECTURE.md           the LLM/deterministic boundary, drawn
 DESIGN.md                 why it is built this way: trade-offs, decisions we

@@ -509,3 +509,52 @@ def test_engine_never_reads_the_wall_clock(repo):
     assert offenders == {"services/scorecard.py"}, (
         f"unexpected wall-clock use in the engine: {sorted(offenders)}"
     )
+
+
+# ------------------------------------------- scarcity: chains and near-misses
+
+def test_near_misses_are_reported_even_when_options_exist(repo, p2291):
+    """Relaxation used to run only at zero legal cover, so on a well-crewed week it
+    never spoke. How close the next candidate came is useful either way."""
+    result = rank_options(
+        repo, p2291, "Captain", exclude_crew={"C-1042"}, exclude_pairing="P-2291"
+    )
+    assert result["legal_count"] > 0
+    assert result["relaxations"], "near-misses should be reported alongside legal options"
+    near = result["relaxations"][0]
+    assert near["breach_magnitude"]
+    assert near["remedy"]
+
+
+def test_swap_chains_appear_once_direct_cover_runs_out(repo, p2291):
+    """Reserves spent on an earlier call is how cover actually runs out. When it does,
+    the answer should be a swap cascade rather than a shrug."""
+    committed = {"C-1042", "C-3310", "C-1526", "C-3983"}
+    result = rank_options(
+        repo, p2291, "Captain", exclude_crew=committed, exclude_pairing="P-2291"
+    )
+    assert result["legal_count"] <= 2
+    assert result["chain_count"] > 0, "thin cover should trigger the chain search"
+
+    chained = [o for o in result["options"] if o["chain"]]
+    assert chained
+    steps = chained[0]["chain"]
+    assert len(steps) == 2, "a backfilled swap is two moves"
+    assert "Move" in steps[0]["action"] and "Backfill" in steps[1]["action"]
+    # every move in the chain carries its own rule checks
+    assert all(step["rule_checks"] for step in steps)
+    # and nobody is used twice inside one chain
+    assert len({step["crew_id"] for step in steps}) == len(steps)
+
+
+def test_a_controller_can_say_which_crew_are_already_committed(repo):
+    """The scarcity path has to be reachable in plain English, not just in code."""
+    from app.fallback import structured_query
+
+    result = structured_query.route(
+        repo,
+        "Captain C-1042 is out for P-2291 and C-3310, C-1526, C-3983 are already "
+        "committed. What should I do?",
+    )
+    assert result.data["chain_count"] > 0
+    assert "already committed" in result.summary

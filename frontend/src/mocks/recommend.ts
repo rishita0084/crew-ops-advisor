@@ -523,6 +523,22 @@ export const mockRecommendResponse: AdvisorResponse = {
       "reasoning": "Baseline fallback. 972 seats to reaccommodate; shown so every cheaper option can be read against it."
     }
   ],
+  "relaxations": [
+    {
+      "rule_id": "RULE-REST-04",
+      "breach_detail": "Captain C-5820: only 11.75h rest after the new assignment on 2026-09-17, minimum 12h",
+      "breach_magnitude": "0h15m",
+      "remedy": "To use Captain C-5820, delay the first departure by 0h15m so the 12h rest requirement is met, or release them from the adjacent duty.",
+      "resulting_option_rank": null
+    },
+    {
+      "rule_id": "RULE-REST-04",
+      "breach_detail": "Captain C-2143: only 11.25h rest after the new assignment on 2026-09-17, minimum 12h",
+      "breach_magnitude": "0h45m",
+      "remedy": "To use Captain C-2143, delay the first departure by 0h45m so the 12h rest requirement is met, or release them from the adjacent duty.",
+      "resulting_option_rank": null
+    }
+  ],
   "evidence": [
     {
       "source": "computed",
@@ -688,6 +704,16 @@ export const mockRecommendResponse: AdvisorResponse = {
       "source": "computed",
       "fact": "excluded C-5837",
       "value": "RULE-REST-04: only 10.75h rest after the new assignment on 2026-09-17, minimum 12h"
+    },
+    {
+      "source": "computed",
+      "fact": "near miss",
+      "value": "Captain C-5820: only 11.75h rest after the new assignment on 2026-09-17, minimum 12h"
+    },
+    {
+      "source": "computed",
+      "fact": "near miss",
+      "value": "Captain C-2143: only 11.25h rest after the new assignment on 2026-09-17, minimum 12h"
     }
   ],
   "timing_ms": 0

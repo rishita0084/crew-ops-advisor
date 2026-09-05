@@ -236,15 +236,23 @@ def cancellation_impact(repo, flight_ids: list[str]) -> ToolResult:
 # ------------------------------------------------------------------ Tier 3
 
 def recommend_cover(repo, pairing_id: str, role: str, crew_out: str | None = None,
-                    day_index: int | None = None) -> ToolResult:
-    """Ranked, rule-checked recovery options for one vacancy."""
+                    day_index: int | None = None,
+                    also_unavailable: set[str] | None = None) -> ToolResult:
+    """Ranked, rule-checked recovery options for one vacancy.
+
+    `also_unavailable` is how a controller says "and these are already committed" --
+    reserves spent on an earlier call, crew stood down. It is the realistic way cover
+    runs out, and it is what makes multi-step swap chains worth searching for.
+    """
     led = EvidenceLedger()
     pairing = repo.pairings.get(pairing_id)
     if not pairing:
         return ToolResult(summary=f"No pairing {pairing_id}.", confidence="cannot_answer", ledger=led)
 
     days = pairing.days if day_index is None else [pairing.days[day_index]]
-    exclude = {crew_out} if crew_out else set()
+    exclude = set(also_unavailable or set())
+    if crew_out:
+        exclude.add(crew_out)
     result = ranking_mod.rank_options(
         repo, days, role, exclude_crew=exclude, exclude_pairing=pairing_id
     )
@@ -281,10 +289,17 @@ def recommend_cover(repo, pairing_id: str, role: str, crew_out: str | None = Non
         )
         confidence = "review"
     else:
+        committed = len(exclude) - (1 if crew_out else 0)
         summary = (
-            f"{result['legal_count']} legal option(s) cover {pairing_id}. "
-            f"Recommended: {top['action']} at INR {top['cost_inr']:,}, covering "
+            f"{result['legal_count']} legal option(s) cover {pairing_id}"
+            + (f" with {committed} further crew already committed" if committed else "")
+            + f". Recommended: {top['action']} at INR {top['cost_inr']:,}, covering "
             f"{top['coverage']}."
+            + (
+                f" Direct cover is thin, so {result['chain_count']} multi-step swap(s) "
+                f"were searched as well."
+                if result["chain_count"] else ""
+            )
         )
         confidence = "high"
 
