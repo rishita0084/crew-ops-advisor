@@ -84,7 +84,7 @@ export function ConnectPage() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-page px-5 py-8 lg:h-full lg:overflow-y-auto">
+    <main className="mx-auto w-full max-w-page px-5 py-8">
       <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tightest text-fg">
         <PlugIcon aria-hidden="true" className="h-5 w-5 text-accent" />
         Connect over MCP

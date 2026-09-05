@@ -23,7 +23,7 @@ export function AnswerCard({ response }: {response: AdvisorResponse;}) {
   const unverified = response.grounding.unverified_claims;
 
   return (
-    <Card as="article" tone="raised">
+    <Card as="article">
       <div className="p-6">
         <div className="flex flex-wrap items-center gap-2">
           <ConfidenceBadge confidence={response.confidence} />

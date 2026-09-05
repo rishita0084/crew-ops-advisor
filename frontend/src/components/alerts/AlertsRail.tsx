@@ -13,7 +13,7 @@ export function AlertsRail({ alerts, loading, error }: AlertsRailProps) {
   return (
     <aside
       aria-label="Operational warnings"
-      className="rounded-xl border border-line bg-surface shadow-card">
+      className="rounded-lg border border-line bg-surface shadow-card">
       
       <div className="flex items-baseline justify-between gap-3 px-5 py-4">
         <h2 className="text-2xs font-semibold uppercase tracking-label text-fg-faint">Watch list</h2>
