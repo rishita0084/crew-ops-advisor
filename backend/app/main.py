@@ -17,9 +17,16 @@ from app.db.repository import get_repository
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if not DB_PATH.exists():
-        raise RuntimeError(
-            f"No database at {DB_PATH}. Run: python scripts/import_data.py"
-        )
+        # The database is a generated cache of the committed JSON dataset. Hosting
+        # platforms such as Render use an ephemeral filesystem, so a fresh deploy or
+        # restart may not contain it even when the application code is present.
+        from scripts.import_data import main as import_data
+
+        print(f"No database at {DB_PATH}; rebuilding it from the JSON dataset")
+        import_data()
+
+    if not DB_PATH.exists():
+        raise RuntimeError(f"Database bootstrap did not create {DB_PATH}")
     repo = get_repository()
     print(
         f"Crew Ops Advisor ready - {len(repo.crew)} crew, {len(repo.flights)} flights, "
