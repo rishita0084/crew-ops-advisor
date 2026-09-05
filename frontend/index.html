@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0b0a" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f6f2" />
+    <meta name="description"
+          content="Crew Ops Advisor - conversational crew control for dCortex Air. Legality, impact and ranked recovery, computed not guessed." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crew Ops Advisor &middot; dCortex Air</title>
+    <script>
+      // Runs before the first paint: without it a controller who chose light mode
+      // gets a black flash on every load, and vice versa.
+      (function () {
+        try {
+          var stored = localStorage.getItem('crew-ops-theme') || 'system';
+          var resolved = stored === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+            : stored;
+          document.documentElement.setAttribute('data-theme', resolved);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+# Core API + engine.
+# fastapi is pinned >=0.141 because the MCP SDK below requires starlette 1.x, which
+# older FastAPI releases reject. Installing mcp first and fastapi second breaks the API.
+fastapi==0.141.1
+uvicorn[standard]==0.34.0
+pydantic==2.13.5
+python-dotenv==1.0.1
+httpx==0.28.1
+
+# MCP adapter (mcp_server/index.py). The REST API does not need it, but it is pinned
+# here so the two dependency trees are resolved together rather than fighting.
+mcp==2.1.1
+
+pytest==8.3.4

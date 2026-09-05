@@ -1,0 +1,20 @@
+# Python
+backend/.venv/
+backend/db/*.db
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Secrets — never commit
+.env
+backend/.env
+frontend/.env
+
+# dCortex shipped this in the starter pack by mistake -- their own README says
+# "Do not ship to participants". It is judging material, so it is not ours to
+# republish. Nothing in the codebase reads it.
+internal/

@@ -1,0 +1,154 @@
+/* dCortex Crew Ops Advisor — single source of truth for design tokens.
+   Derived from the dCortex brand: lime accent, near-black surfaces, off-white paper,
+   tight geometric grotesk type, pill buttons, soft-rounded cards.
+   No component may hardcode a colour, radius, font or spacing value. */
+
+:root {
+  /* Dark is the default: a crew desk runs at 05:00 in a dim room.
+     color-scheme keeps native scrollbars and form controls in step. */
+  color-scheme: dark;
+
+  /* ---- Colour: surfaces ---- */
+  --color-void: #0a0b0a;
+  --color-surface: #111311;
+  --color-surface-raised: #171a17;
+  --color-surface-sunken: #0d0e0d;
+  --color-line: #232723;
+  --color-line-strong: #363b36;
+  /* ---- Colour: foreground ---- */
+  --color-fg: #f3f4f0;
+  --color-fg-muted: #9aa09a;
+  --color-fg-faint: #6a706a;
+  --color-ink: #0a0b0a;
+  /* ---- Colour: brand accent ---- */
+  --color-accent: #8ce225;
+  --color-accent-strong: #9bf22e;
+  --color-accent-ink: #0a0b0a;
+  --color-accent-soft: #1a2711;
+  --color-accent-line: #2f4a17;
+  /* ---- Colour: status ---- */
+  --color-pass: #8ce225;
+  --color-pass-soft: #1a2711;
+  --color-warning: #f2b33d;
+  --color-warning-soft: #2b2110;
+  --color-warning-line: #4a3a15;
+  --color-danger: #ff6a58;
+  --color-danger-soft: #2c1512;
+  --color-danger-line: #4d211b;
+  --color-info: #7fb0ff;
+  --color-info-soft: #131c2b;
+  --color-info-line: #22334d;
+  --color-paper: #f2f1ec;
+  /* ---- Typography ---- */
+  --font-sans: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+  --tracking-label: 0.12em;
+  --tracking-tight: -0.02em;
+  /* ---- Radii ---- */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 999px;
+  /* ---- Spacing rhythm (4px base) ---- */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  /* ---- Elevation ---- */
+  --shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.02), 0 12px 32px -20px rgba(0, 0, 0, 0.9);
+  /* loading shimmer: a light sweep on dark surfaces */
+  --shimmer: rgba(255, 255, 255, 0.05);
+  --shadow-focus: 0 0 0 2px var(--color-void), 0 0 0 4px var(--color-accent);
+  /* ---- Layout widths ---- */
+  --width-console: 46rem;
+  --width-rail: 19rem;
+  --width-page: 78rem;
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-fast: 140ms;
+  --duration-base: 200ms;
+}
+
+
+/* ---------------------------------------------------------------------------
+   LIGHT THEME
+   Only colour tokens are redefined -- type, spacing, radii and motion are
+   theme-independent, and no component hardcodes a colour, so this file is the
+   only place light mode exists.
+
+   The accent is the one value that cannot simply carry over: brand lime
+   (#8ce225) on white is ~1.9:1, unreadable as text. Light mode uses a deep lime
+   of the same hue, which clears AA both as text on the pale tint and as a fill
+   with white on top. Dark mode keeps the bright brand lime.
+--------------------------------------------------------------------------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* ---- Colour: surfaces ---- */
+  --color-void: #f6f6f2;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbfbf7;
+  --color-surface-sunken: #eeeee7;
+  --color-line: #e1e1d9;
+  --color-line-strong: #c3c3b8;
+  /* ---- Colour: foreground ---- */
+  --color-fg: #15170f;
+  --color-fg-muted: #575c4e;
+  --color-fg-faint: #7f8477;
+  --color-ink: #ffffff;
+  /* ---- Colour: brand accent ---- */
+  --color-accent: #3f6b0a;
+  --color-accent-strong: #2f5207;
+  --color-accent-ink: #ffffff;
+  --color-accent-soft: #ebf6d8;
+  --color-accent-line: #c1dc92;
+  /* ---- Colour: status ---- */
+  --color-pass: #3f6b0a;
+  --color-pass-soft: #ebf6d8;
+  --color-warning: #855206;
+  --color-warning-soft: #fdf3dc;
+  --color-warning-line: #e7cd91;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fdecea;
+  --color-danger-line: #f0b6b1;
+  --color-info: #1f5fbf;
+  --color-info-soft: #e9f0fd;
+  --color-info-line: #b5cdf2;
+  --color-paper: #ffffff;
+  /* ---- Elevation: light surfaces need a real shadow, not a glow ---- */
+  --shadow-card: 0 1px 2px 0 rgba(21, 23, 15, 0.06),
+                 0 12px 28px -20px rgba(21, 23, 15, 0.38);
+  /* the sweep has to darken on light surfaces, or the skeleton looks frozen */
+  --shimmer: rgba(21, 23, 15, 0.06);
+}
+
+/* Theme changes should feel like a light switch, not a page reload -- but never
+   animate for anyone who has asked the interface to stop moving. */
+@media (prefers-reduced-motion: no-preference) {
+  :root.theme-transition,
+  :root.theme-transition * {
+    transition: background-color var(--duration-base) var(--ease-out),
+                border-color var(--duration-base) var(--ease-out),
+                color var(--duration-base) var(--ease-out);
+  }
+}
