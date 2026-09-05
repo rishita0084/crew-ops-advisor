@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { AskBar } from '../components/ask/AskBar';
 import { SuggestedQuestions } from '../components/ask/SuggestedQuestions';
 import { AnswerCard } from '../components/answer/AnswerCard';
@@ -12,13 +13,27 @@ export function ConsolePage() {
   const { thread, pending, ask, runWhatIf } = useAdvisor();
   const { alerts, loading, error } = useAlerts();
   const endRef = useRef<HTMLDivElement>(null);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   const started = thread.length > 0;
+
+  useEffect(() => {
+    const updateVisibility = () => setShowScrollToTop(window.scrollY > 300);
+
+    updateVisibility();
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', updateVisibility);
+  }, []);
 
   useEffect(() => {
     if (thread.length === 0) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     endRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'end' });
   }, [thread]);
+
+  const scrollToTop = () => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  };
 
   return (
     <div className="mx-auto grid w-full max-w-page gap-8 px-5 py-8 xl:grid-cols-[minmax(0,1fr)_var(--width-rail)]">
@@ -58,11 +73,29 @@ export function ConsolePage() {
             <div ref={endRef} />
           </section>
         }
+
+        {showScrollToTop &&
+        <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 sm:bottom-8">
+            <div className="mx-auto grid w-full max-w-page gap-8 px-5 xl:grid-cols-[minmax(0,1fr)_var(--width-rail)]">
+              <div className="mx-auto flex w-full max-w-console justify-center">
+                <button
+                  type="button"
+                  onClick={scrollToTop}
+                  className="pointer-events-auto flex items-center gap-2 rounded-full border border-accent-line bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-card transition-colors duration-150 ease-out hover:bg-accent-strong"
+                >
+                  <ArrowUp aria-hidden="true" className="h-4 w-4" />
+                  Scroll to Top
+                </button>
+              </div>
+            </div>
+          </div>
+        }
       </main>
 
       <div className="xl:sticky xl:top-8 xl:self-start">
         <AlertsRail alerts={alerts} loading={loading} error={error} />
       </div>
+
     </div>);
 
 }
