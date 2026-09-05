@@ -27,12 +27,22 @@ Two terminals.
 
 ```bat
 cd backend
+
+Windows:
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 python scripts\import_data.py          :: JSON -> SQLite, idempotent
 copy .env.example .env                 :: then paste your LLM_API_KEY
 uvicorn app.main:app --reload          :: http://localhost:8000
+
+Mac:
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python scripts\import_data.py 
+cp .env.example .env
+uvicorn app.main:app --reload
 ```
 
 **Frontend**
