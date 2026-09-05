@@ -123,8 +123,14 @@ def crew_search(repo, rank: str | None = None, base: str | None = None,
 
     descriptor = " ".join(x for x in [rank, f"based at {base}" if base else None,
                                       f"rated {rating}" if rating else None] if x)
+    # Agree the verb with the count. A bare "1 crew match ..." reads as a broken
+    # string rather than a real answer, and a genuinely small result -- this fleet
+    # has exactly one DEL-based captain -- is then mistaken for a bug.
+    n = len(matches)
+    noun = "crew member" if n == 1 else "crew members"
+    verb = "matches" if n == 1 else "match"
     return ToolResult(
-        summary=f"{len(matches)} crew match {descriptor or 'the filter'}.",
+        summary=f"{n} {noun} {verb} {descriptor or 'the filter'}.",
         data={"count": len(matches), "crew_ids": [c.crew_id for c in matches]},
         table=_table(
             ["Crew", "Name", "Rank", "Base", "Ratings", "Seniority"],
