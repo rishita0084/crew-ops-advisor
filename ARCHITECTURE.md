@@ -32,7 +32,7 @@ true.** Everything below follows from that one line.
     ║  (entity + intent)          choose from, and answers alone    ║
     ║                             when there is no model at all     ║
     ╚════════════════════════════╤══════════════════════════════════╝
-                                 │  15 typed tools
+                                 │  16 typed tools
     ═════════════════════════════╪══════════════════════════════════
               T H E   B O U N D A R Y   --  nothing above computes
               a fact; nothing below writes prose
@@ -116,7 +116,7 @@ The full payload reaches the UI on a separate path, which is why the cost on the
 the cost in the sentence cannot disagree.
 
 **The deterministic layer narrows the menu before the model chooses.** `relevant_tools()`
-reads the question and offers 4–7 of the 15 tools rather than all of them. Fewer
+reads the question and offers 4–7 of the 16 tools rather than all of them. Fewer
 distractors, and on a free-tier token budget the schema alone had been costing ~1,560
 tokens per round. Deterministic code narrows; the model picks within that.
 
@@ -169,7 +169,7 @@ asserts each against the ledger. Unicode dashes are normalised first, because a 
 writing `C‑3310` with a non-breaking hyphen would otherwise slip past the check that exists
 to catch it. That was a real escape, not a hypothetical.
 
-**It cannot go dark.** The deterministic router answers the same 15 tools with no model at
+**It cannot go dark.** The deterministic router answers the same 16 tools with no model at
 all. Set `LLM_ENABLED=false` and the console still works — terser, still correct. When the
 model is present but fails mid-conversation, the router is handed the recent turns, so a
 pronoun-only follow-up ("why not the cheapest option?") still resolves.

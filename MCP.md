@@ -88,7 +88,7 @@ Desktop: right-click the tray icon → **Quit**, then reopen.
 
 ### 4. Confirm and ask
 
-The tools icon near the chat input should list **crew-ops** with 15 tools. Then:
+The tools icon near the chat input should list **crew-ops** with 16 tools. Then:
 
 > Using crew-ops, Captain C-1042 just called in sick for tomorrow. What should I do?
 
@@ -102,11 +102,12 @@ Python process and talks over stdin/stdout, so MCP works even with `uvicorn` sto
 
 ---
 
-## The 15 tools
+## The 16 tools
 
 | Tool | Tier | Returns |
 |---|---|---|
 | `get_crew_profile` | 1 | rank, base, ratings, reachability, reserve window, clocks, risk |
+| `get_crew_roster` | 1 | what one crew member flies on one date: pairings, sectors, report/release, duty |
 | `search_crew` | 1 | crew filtered by rank / base / rating |
 | `get_reserves` | 1 | reserves on call, optionally narrowed to a callout time |
 | `get_duty_clock` | 1 | 7-day duty and 28-day block hours, with headroom per rule |

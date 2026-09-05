@@ -117,7 +117,7 @@ happens to be right.
 
 ## 6. The fallback is a design feature, not a safety net
 
-`app/fallback/structured_query.py` answers the same 15 tools with regex intent matching and
+`app/fallback/structured_query.py` answers the same 16 tools with regex intent matching and
 entity extraction. It exists for three reasons, in order of importance:
 
 1. **The desk cannot go dark.** A crew controller at 05:00 whose advisor is down because an

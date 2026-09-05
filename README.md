@@ -547,7 +547,7 @@ runs only `questions.json` and `scenarios.json`.
 ## Using it from an MCP client
 
 The engine is exposed twice from one implementation — HTTP for our console, MCP for
-anything else. Same 15 tools, same rules engine, zero duplicated logic:
+anything else. Same 16 tools, same rules engine, zero duplicated logic:
 `mcp_server/index.py` is thin typed wrappers that all forward to the same `dispatch()` the
 REST API calls, and a test asserts both doors return identical answers so they cannot
 drift apart.

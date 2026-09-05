@@ -168,6 +168,24 @@ def _pairing_for_crew(repo, crew_id: str, ent: Entities) -> str | None:
     return pairings[0]
 
 
+# "already committed", "we've used", "stood down" -- the controller telling us the pool
+# is thinner than the roster suggests, as opposed to naming a second vacancy.
+_SPENT_RE = re.compile(
+    r"\b(already|committed|spent|used up|used|stood down|tied up|elsewhere|taken)\b"
+)
+
+
+# Things a controller might reasonably ask that this operational dataset simply does
+# not contain. Naming them explicitly is what turns a confident wrong answer into a
+# refusal a judge can trust.
+_NOT_HELD_RE = re.compile(
+    r"\b(paid|pay|salary|salaries|wage|wages|earn|earnings|allowance|bonus|"
+    r"weather|wind|fog|visibility|temperature|"
+    r"phone|mobile|email|address|passport|visa|age|birthday|"
+    r"union|grievance|appraisal|performance review)\b"
+)
+
+
 def route(repo, question: str) -> ToolResult:
     """Map a controller's question to exactly one tool call."""
     text = question.strip()
@@ -222,13 +240,41 @@ def route(repo, question: str) -> ToolResult:
                 # gets promised to two aircraft
                 return _joint_recovery(repo, targets, on)
 
+        # Several crew named in one disruption means one of two very different things,
+        # and the words decide which. "C-1042 is sick and C-3310 is already committed"
+        # is ONE vacancy with a thinner pool. "C-1042 and C-3310 are both sick" is TWO
+        # vacancies, and answering it as one silently leaves a pairing uncrewed.
+        others = ent.crew_ids[1:] if len(ent.crew_ids) > 1 else []
+        if others and _SPENT_RE.search(low):
+            role = _role_for(repo, crew_out, ent)
+            return A.recommend_cover(
+                repo, pairing_id, role, crew_out=crew_out, also_unavailable=set(others)
+            ) if pairing_id else A.recover_from_state(
+                repo, BASE_STATE.with_crew_unavailable(crew_out, "sick")
+            )
+
+        if others:
+            targets = []
+            for cid in ent.crew_ids:
+                member = repo.crew.get(cid)
+                # a crew member named as sick is a vacancy on the pairing they were
+                # flying -- or, when the controller named the pairing themselves, on
+                # that one, which is how "the captain AND the FO on P-2291" resolves
+                pid = _pairing_for_crew(repo, cid, ent) or ent.pairing_id
+                if member and pid:
+                    targets.append((pid, member.rank, cid))
+            if len({(pid, role) for pid, role, _ in targets}) > 1:
+                # two people out at once: solve together, or the same reserve gets
+                # promised to two seats
+                return _joint_recovery(repo, targets, on)
+
         if pairing_id:
             role = _role_for(repo, crew_out, ent)
-            # "C-1042 is sick and C-3310, C-1526 are already committed" -- the first id
-            # is the vacancy, the rest are crew the controller has already spent
-            committed = {c for c in ent.crew_ids[1:]} if len(ent.crew_ids) > 1 else set()
+            # everyone named as sick is off the board, not just the one whose seat we
+            # are filling -- otherwise the desk is told to call out a crew member the
+            # controller has just said is unavailable
             return A.recommend_cover(
-                repo, pairing_id, role, crew_out=crew_out, also_unavailable=committed
+                repo, pairing_id, role, crew_out=crew_out, also_unavailable=set(others)
             )
         if crew_out:
             state = BASE_STATE.with_crew_unavailable(crew_out, "sick")
@@ -288,7 +334,13 @@ def route(repo, question: str) -> ToolResult:
         if ids:
             return A.cancellation_impact(repo, ids)
 
+    # "allowed to", "ok to", "does anything break" are the same question as "is it
+    # legal", and a controller asks it in whichever words come to hand. This has to be
+    # tried before the roster branch, or "allowed to OPERATE P-2291" is read as a
+    # request for that crew member's schedule.
     if re.search(r"\b(legal|legally|breach|can .* cover|may .* operate|does .* breach|"
+                 r"allowed to|ok to|okay to|cleared to|permitted to|"
+                 r"anything break|any(?:thing)? wrong|any issue|any problem|"
                  r"if i (?:move|assign|put))\b", low) and ent.crew_id:
         pairing_id = ent.pairing_id
         if not pairing_id and ent.flight_nos:
@@ -313,6 +365,23 @@ def route(repo, question: str) -> ToolResult:
     if re.search(r"\b(earliest|next report|report next|rest)\b", low) and re.search(r"\d{1,2}:\d{2}", text):
         clock = re.search(r"(\d{1,2}:\d{2})", text).group(1)
         return L.rest_calculator(repo, clock, on)
+
+    # "who is close to their duty limit?" names no threshold, and a controller does not
+    # think in one. Operationally "close" means one more ordinary duty day would break
+    # it, so the threshold is the limit minus a typical rostered day -- both read from
+    # the data, so a different roster moves the line on its own.
+    if re.search(
+        r"\b(near|close to|closest to|approaching|running (?:up )?(?:against|out of)|"
+        r"blowing|at risk of|about to (?:hit|exceed|break))\b", low
+    ) and re.search(r"\b(duty|limit|hours|cap)\b", low) and not re.search(
+        # a date in the question is not a threshold, so blank dates out before asking
+        # whether the controller supplied a number of their own
+        r"\d{2}", re.sub(r"\d{4}-\d{2}-\d{2}|\b\d{1,2}\s*(?:sep|sept|september|oct|october)\b", " ", low)
+    ):
+        limit = float(repo.rule_param("RULE-DUTY-02", "max_duty_hours", 60))
+        day_hours = sorted(d.duty_hours for p in repo.pairings.values() for d in p.days)
+        typical = day_hours[len(day_hours) // 2] if day_hours else 0.0
+        return L.crew_near_limit(repo, on, round(limit - typical, 2))
 
     if re.search(r"\b(45|50|55|\d{2})\s*(?:or more|\+)?\s*duty hours\b", low) or re.search(
         r"\bduty hours\b.*\b(or more|at least|above|over)\b", low
@@ -373,6 +442,15 @@ def route(repo, question: str) -> ToolResult:
     if re.search(r"\b(nonstop|non-stop|destinations|serve[sd]?|network)\b", low) and ent.station:
         return L.network_map(repo, ent.station)
 
+    # "what is C-1042 flying tomorrow" is a roster question about one date, not a
+    # request for their profile card. It has to come before the generic flight branch,
+    # which would otherwise read "operating"/"schedule" as a network-wide query.
+    if ent.crew_id and re.search(
+        r"\b(flying|fly|flies|rostered|roster|operating|operate|working|work|"
+        r"on duty|duty on|scheduled|schedule|doing)\b", low
+    ):
+        return L.crew_roster_on(repo, ent.crew_id, on)
+
     if ent.crew_id and re.search(
         r"\b(base|rating|rated|reachab|on-call window|window|rank|who is|profile|seniority)\b", low
     ):
@@ -402,6 +480,21 @@ def route(repo, question: str) -> ToolResult:
             repo, ent.date, dep=dep, arr=arr,
             flight_no=ent.flight_nos[0] if ent.flight_nos else None,
             tail=ent.tails[0] if ent.tails else None,
+        )
+
+    # Naming a crew member is not the same as asking something this dataset can answer
+    # about them. "How much does C-1042 get paid?" used to return their profile card at
+    # high confidence -- every word of it true, none of it the answer. Pay, contact
+    # details and weather are simply not in the operational picture, and saying so is
+    # the only honest response.
+    if _NOT_HELD_RE.search(low):
+        return ToolResult(
+            summary=(
+                "That is not in this dataset. I hold rosters, pairings, flights, duty "
+                "and block hours, certifications, reserve windows, risk signals and the "
+                "cost model -- not pay, personal details or weather."
+            ),
+            confidence="cannot_answer",
         )
 
     if ent.crew_id:

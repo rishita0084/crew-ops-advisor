@@ -311,7 +311,7 @@ def test_mcp_adapter_exposes_the_same_engine(repo):
     )
     import json as _json
 
-    assert len(mcp_index.TOOLS) == len(mcp_index.tool_mod.TOOL_SPECS) == 15
+    assert len(mcp_index.TOOLS) == len(mcp_index.tool_mod.TOOL_SPECS) == 16
 
     via_mcp = _json.loads(
         mcp_index.recommend_recovery(pairing_id="P-2291", role="Captain", crew_out="C-1042")
@@ -618,3 +618,95 @@ def test_a_long_rate_limit_wait_is_not_slept_through(repo):
     assert openai_compat._retry_after(daily_cap) == 54.0, "the real wait, unclamped"
     assert openai_compat._retry_after(daily_cap) > openai_compat.MAX_BACKOFF_SECONDS
     assert openai_compat._retry_after(per_minute) <= openai_compat.MAX_BACKOFF_SECONDS
+
+
+def test_a_roster_question_is_answered_with_the_roster(repo):
+    """"What is C-1042 flying tomorrow?" is a date question. Answering it with a
+    profile card -- rank, base, every pairing they hold all week -- is not an answer,
+    and it was doing exactly that for every date anyone asked about."""
+    from app.fallback import structured_query
+    from datetime import date
+
+    tomorrow = structured_query.route(repo, "what is C-1042 flying tomorrow?")
+    assert "P-2291" in tomorrow.summary and "DX412" in tomorrow.summary
+    assert tomorrow.data["date"] == "2026-09-15"
+
+    # a different date must give a different answer, which is what was broken
+    later = structured_query.route(repo, "what is C-1042 flying on 16 Sep?")
+    assert later.data["date"] == "2026-09-16"
+    assert later.data["flights"] != tomorrow.data["flights"]
+
+
+def test_a_date_outside_the_published_week_is_said_out_loud(repo):
+    """Returning "nothing rostered" for a week we do not hold reads as fact. It isn't."""
+    from app.fallback import structured_query
+
+    for question, word in [("what is C-1042 flying on 2026-09-25?", "after"),
+                           ("what is C-1042 flying on 2026-09-10?", "before")]:
+        result = structured_query.route(repo, question)
+        assert result.confidence == "cannot_answer"
+        assert word in result.summary and "2026-09-20" in result.summary
+
+
+def test_two_sick_crew_are_two_vacancies_not_a_thinner_pool(repo):
+    """"Both sick" and "already committed" are different questions. Reading the first
+    as the second silently leaves the second pairing uncrewed."""
+    from app.fallback import structured_query
+
+    both = structured_query.route(
+        repo, "C-1042 and C-1526 are both sick on 15 Sep, what should I do?")
+    assert "joint" in both.summary.lower()
+    assert "no crew member assigned twice" in both.summary
+
+    spent = structured_query.route(
+        repo, "C-1042 is out for P-2291 and C-3310, C-1526 are already committed. "
+              "What should I do?")
+    assert "already committed" in spent.summary
+    assert "joint" not in spent.summary.lower()
+
+    # and nobody named as sick may be offered as their own cover
+    named = structured_query.route(
+        repo, "C-1042 and C-3310 are both sick for 2026-09-15, what should I do?")
+    assert "C-3310" not in named.summary
+
+
+def test_it_refuses_what_the_dataset_does_not_hold(repo):
+    """Naming a crew member is not the same as asking something answerable about them.
+    "How much does C-1042 get paid?" returned their profile at high confidence: every
+    word true, none of it the answer."""
+    from app.fallback import structured_query
+
+    for question in ["How much does C-1042 get paid?",
+                     "What is the weather at BLR?",
+                     "What is C-1042's phone number?"]:
+        result = structured_query.route(repo, question)
+        assert result.confidence == "cannot_answer", question
+        assert "not in this dataset" in result.summary
+
+
+def test_legality_survives_the_words_a_controller_actually_uses(repo):
+    """"Allowed to operate" is the same question as "can cover", and must not be read
+    as a request for that crew member's schedule."""
+    from app.fallback import structured_query
+
+    for question in ["Is C-2087 allowed to operate P-2291?",
+                     "can C-2087 cover P-2291?",
+                     "If C-2087 covers P-2291 does anything break?"]:
+        result = structured_query.route(repo, question)
+        assert "RULE-DUTY-02" in result.summary, question
+        assert "61.33" in result.summary, question
+
+
+def test_our_own_thresholds_are_grounded_too(repo):
+    """The verifier does not get to make an exception for numbers we chose ourselves.
+    A duty threshold quoted in the summary but never recorded as evidence was flagged
+    unverified -- correctly, and the fix is to record it, not to relax the check."""
+    from app.explain.verifier import verify
+    from app.fallback import structured_query
+
+    result = structured_query.route(repo, "who is near their duty limit?")
+    assert verify(result.summary, result.ledger).verified
+    # and the headroom column is measured against the rule, not a literal 60
+    limit = float(repo.rule_param("RULE-DUTY-02", "max_duty_hours", 60))
+    for row in result.table["rows"]:
+        assert row[4] == round(limit - row[3], 2)

@@ -36,6 +36,16 @@ TOOL_SPECS: list[dict] = [
                        "required": ["crew_id"]},
     },
     {
+        "name": "get_crew_roster",
+        "description": "What one crew member is rostered to fly on ONE date: pairings, "
+                       "sectors, report and release times, duty hours. Use this for "
+                       "'what is X flying tomorrow' rather than the profile tool.",
+        "parameters": {"type": "object", "properties": {
+            "crew_id": _CREW,
+            "date": {"type": "string", "description": "ISO date, e.g. 2026-09-15"},
+        }, "required": ["crew_id"]},
+    },
+    {
         "name": "search_crew",
         "description": "Find crew by rank, base and/or aircraft rating.",
         "parameters": {"type": "object", "properties": {
@@ -158,6 +168,7 @@ TOOL_SPECS: list[dict] = [
 
 TOOL_TIERS: dict[str, int] = {
     "get_crew_profile": 1,
+    "get_crew_roster": 1,
     "search_crew": 1,
     "get_reserves": 1,
     "get_duty_clock": 1,
@@ -238,7 +249,7 @@ _BUCKETS: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
 ]
 
 # Offered when nothing matches, and topped up onto every subset.
-_CORE = ("get_crew_profile", "get_pairing", "search_flights", "get_reserves",
+_CORE = ("get_crew_profile", "get_crew_roster", "get_pairing", "search_flights", "get_reserves",
          "recommend_recovery", "analyse_disruption")
 
 MAX_TOOLS = 7
@@ -278,6 +289,9 @@ def dispatch(repo, name: str, args: dict) -> ToolResult:
 
     if name == "get_crew_profile":
         return L.crew_profile(repo, args["crew_id"])
+
+    if name == "get_crew_roster":
+        return L.crew_roster_on(repo, args["crew_id"], _d(args.get("date")) or default_date)
 
     if name == "search_crew":
         return L.crew_search(repo, args.get("rank"), args.get("base"), args.get("rating"))

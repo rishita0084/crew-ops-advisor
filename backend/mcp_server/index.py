@@ -87,6 +87,10 @@ def get_crew_profile(crew_id: str) -> str:
     return _run("get_crew_profile", crew_id=crew_id)
 
 
+def get_crew_roster(crew_id: str, date: str | None = None) -> str:
+    return _run("get_crew_roster", crew_id=crew_id, date=date)
+
+
 def search_crew(rank: str | None = None, base: str | None = None,
                 rating: str | None = None) -> str:
     return _run("search_crew", rank=rank, base=base, rating=rating)
@@ -160,7 +164,7 @@ def draft_crew_notification(crew_id: str, pairing_id: str) -> str:
 
 
 TOOLS = [
-    get_crew_profile, search_crew, get_reserves, get_duty_clock,
+    get_crew_profile, get_crew_roster, search_crew, get_reserves, get_duty_clock,
     find_crew_near_duty_limit, search_flights, get_expiring_certifications,
     get_pairing, analyse_disruption, check_assignment_legality,
     get_cancellation_impact, recommend_recovery, get_earliest_report,

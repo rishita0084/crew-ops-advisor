@@ -107,6 +107,90 @@ def crew_profile(repo, crew_id: str) -> ToolResult:
     )
 
 
+def crew_roster_on(repo, crew_id: str, on: date) -> ToolResult:
+    """What one crew member is actually flying on one date.
+
+    "What is C-1042 flying tomorrow?" is the most ordinary question on a crew desk,
+    and answering it with a profile card -- rank, base, every pairing they hold all
+    week -- is not an answer. A date outside the published week gets said out loud
+    rather than returned as an empty list, because silence there reads as "nothing
+    rostered" when the truth is "we do not hold that week".
+    """
+    led = EvidenceLedger()
+    crew = repo.crew.get(crew_id)
+    if not crew:
+        return ToolResult(
+            summary=f"No crew member {crew_id} exists in the roster.",
+            confidence="cannot_answer", ledger=led,
+        )
+
+    # conventions carry the week as ISO strings, derived from the flight dates
+    week_start = date.fromisoformat(repo.conventions.week_start)
+    week_end = date.fromisoformat(repo.conventions.week_end)
+    led.add("crew.json", f"{crew_id} rank", crew.rank)
+    led.allow(crew.name, crew_id, on.isoformat())
+
+    if not (week_start <= on <= week_end):
+        where = "before" if on < week_start else "after"
+        return ToolResult(
+            summary=(
+                f"{on} is {where} the published schedule, which runs {week_start} to "
+                f"{week_end}. I cannot say what {crew.rank} {crew_id} is flying that day."
+            ),
+            data={"crew_id": crew_id, "date": on.isoformat(), "in_schedule": False,
+                  "week_start": week_start.isoformat(), "week_end": week_end.isoformat()},
+            confidence="cannot_answer",
+            ledger=led,
+        )
+
+    blocks = [b for b in repo.roster.get(crew_id, []) if b.date == on]
+    if not blocks:
+        return ToolResult(
+            summary=f"{crew.rank} {crew_id} ({crew.name}) has no duty rostered on {on}.",
+            data={"crew_id": crew_id, "date": on.isoformat(), "in_schedule": True,
+                  "pairings": [], "flights": []},
+            ledger=led,
+        )
+
+    rows: list[list] = []
+    flight_nos: list[str] = []
+    for block in blocks:
+        pairing = repo.pairings.get(block.pairing_id)
+        day = next((d for d in pairing.days if d.date == on), None) if pairing else None
+        legs = [repo.flights[f] for f in day.flight_ids] if day else []
+        for leg in legs:
+            flight_nos.append(leg.flight_no)
+            rows.append([
+                leg.flight_no, f"{leg.dep_station}-{leg.arr_station}",
+                f"{leg.dep_utc:%H:%M}Z", f"{leg.arr_utc:%H:%M}Z",
+                leg.aircraft, block.pairing_id,
+            ])
+            led.allow(leg.flight_no, leg.dep_station, leg.arr_station, leg.aircraft)
+        led.add("rosters.json", f"{crew_id} on {on}", block.pairing_id)
+        led.add("rosters.json", f"{block.pairing_id} duty on {on}", block.duty_hours)
+
+    pairings = sorted({b.pairing_id for b in blocks})
+    report = min(b.report_utc for b in blocks)
+    release = max(b.release_utc for b in blocks)
+    duty = round(sum(b.duty_hours for b in blocks), 2)
+    led.allow(f"{report:%H:%M}", f"{release:%H:%M}", duty)
+
+    return ToolResult(
+        summary=(
+            f"{crew.rank} {crew_id} ({crew.name}) flies {', '.join(pairings)} on {on}: "
+            f"{len(rows)} sector(s) {' '.join(flight_nos)}, report {report:%H:%M}Z, "
+            f"release {release:%H:%M}Z, {duty}h duty."
+        ),
+        data={
+            "crew_id": crew_id, "date": on.isoformat(), "in_schedule": True,
+            "pairings": pairings, "flights": flight_nos, "duty_hours": duty,
+            "report_utc": f"{report:%H:%M}", "release_utc": f"{release:%H:%M}",
+        },
+        table=_table(["Flight", "Route", "Dep", "Arr", "Aircraft", "Pairing"], rows),
+        ledger=led,
+    )
+
+
 def crew_search(repo, rank: str | None = None, base: str | None = None,
                 rating: str | None = None) -> ToolResult:
     led = EvidenceLedger()
@@ -233,13 +317,20 @@ def crew_near_limit(repo, on: date, threshold: float) -> ToolResult:
     """Crew at or above a duty threshold in the 7 days ending `on`, planned duty included."""
     led = EvidenceLedger()
     window = int(repo.rule_param("RULE-DUTY-02", "window_days", 7))
+    limit = float(repo.rule_param("RULE-DUTY-02", "max_duty_hours", 60))
+    # the threshold and the limit are both stated in the answer, so both have to be
+    # grounded -- otherwise the verifier correctly flags our own arithmetic
+    led.add("rules.json", "RULE-DUTY-02 max duty hours", limit)
+    led.add("rules.json", "RULE-DUTY-02 window days", window)
+    led.add("computed", "duty threshold", threshold)
     rows = []
     for cid in sorted(repo.crew):
         total = accrued_duty(repo, cid, on, window)
         if total >= threshold:
             crew = repo.crew[cid]
-            rows.append([cid, crew.rank, crew.base, total, round(60 - total, 2)])
+            rows.append([cid, crew.rank, crew.base, total, round(limit - total, 2)])
             led.add("duty_clocks.json", f"{cid} duty hours to {on}", total)
+            led.allow(cid, crew.rank, crew.base)
     return ToolResult(
         summary=(
             f"{len(rows)} crew have {threshold}h or more duty in the {window} calendar "
