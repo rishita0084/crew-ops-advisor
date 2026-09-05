@@ -39,7 +39,8 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env                 :: leave LLM_API_KEY blank to run without a key
-python scripts\import_data.py          :: JSON -> SQLite, safe to re-run
+python scripts\import_data.py          :: JSON -> SQLite (optional: the app does
+                                       :: this itself if the DB is missing)
 uvicorn app.main:app --reload          :: serves http://127.0.0.1:8000
 ```
 </details>
@@ -53,7 +54,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                   # leave LLM_API_KEY blank to run without a key
-python scripts/import_data.py          # JSON -> SQLite, safe to re-run
+python scripts/import_data.py          # JSON -> SQLite (optional: the app does
+                                       # this itself if the DB is missing)
 uvicorn app.main:app --reload          # serves http://127.0.0.1:8000
 ```
 </details>
@@ -163,7 +165,7 @@ None of these need a key — they exercise the deterministic engine, which is th
 
 | Symptom | Cause |
 |---|---|
-| `No database at .../crew_ops.db` | `scripts/import_data.py` has not been run |
+| Startup logs "rebuilding it from the JSON dataset" | Normal. The database is a cache of the JSON and is rebuilt when absent |
 | Console answers but ignores the backend | `frontend/.env` missing → fixtures. See step 2 |
 | Answers, then "advisor service did not respond" | backend not running, or a `localhost`/`127.0.0.1` mismatch |
 | `Router.__init__() got an unexpected keyword argument` | FastAPI/MCP version clash — install from `requirements.txt`, not one package at a time |
