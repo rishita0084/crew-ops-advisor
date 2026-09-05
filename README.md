@@ -200,7 +200,7 @@ rules, illegal ones hard-filtered with a stated reason, the rest priced and rank
 cancellation always shown as the baseline to read the others against.
 
 **Beyond the brief:** closure delay-to-reopen planning, joint assignment across
-simultaneous vacancies, duty splitting, future-resilience scoring, proactive alerts,
+simultaneous vacancies, duty splitting (including a mid-duty callout), future-resilience scoring, proactive alerts,
 drafted crew callouts, multi-turn context that survives an LLM outage, an MCP adapter,
 light/dark theming, and a live strict scorecard.
 

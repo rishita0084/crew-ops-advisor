@@ -50,6 +50,36 @@ def synthetic_day(repo, source: PairingDay, flight_ids: list[str],
     )
 
 
+def tail_after(repo, pairing, sectors_flown: int):
+    """The duty still to be covered once `sectors_flown` sectors have been operated.
+
+    A crew member who goes sick mid-duty is a different vacancy from one who never
+    reports: the sectors already flown are flown, and only the tail needs a new seat.
+    The tail of a part-flown day becomes a duty period in its own right -- report and
+    release recomputed from the legs that actually remain -- because FDP and duty
+    hours are properties of a duty period, not of a list of legs. Any later day of the
+    pairing carries over whole.
+
+    Returns (days_to_cover, flown_flight_ids).
+    """
+    flown: list[str] = []
+    remaining: list[PairingDay] = []
+    left = max(0, int(sectors_flown))
+
+    for day in pairing.days:
+        legs = list(day.flight_ids)
+        if left >= len(legs):
+            flown.extend(legs)
+            left -= len(legs)
+        elif left > 0:
+            flown.extend(legs[:left])
+            remaining.append(synthetic_day(repo, day, legs[left:]))
+            left = 0
+        else:
+            remaining.append(day)
+    return remaining, flown
+
+
 def plan_split(repo, day: PairingDay, incumbent_crew: dict[str, str],
                delay_hours: float) -> Split | None:
     """Find the longest prefix of the duty the rostered crew can still legally fly.

@@ -151,8 +151,10 @@ def get_cancellation_impact(flight_ids: list[str]) -> str:
     return _run("get_cancellation_impact", flight_ids=flight_ids)
 
 
-def recommend_recovery(pairing_id: str, role: str, crew_out: str | None = None) -> str:
-    return _run("recommend_recovery", pairing_id=pairing_id, role=role, crew_out=crew_out)
+def recommend_recovery(pairing_id: str, role: str, crew_out: str | None = None,
+                       sectors_flown: int | None = None) -> str:
+    return _run("recommend_recovery", pairing_id=pairing_id, role=role,
+                crew_out=crew_out, sectors_flown=sectors_flown)
 
 
 def get_alerts(date: str | None = None) -> str:

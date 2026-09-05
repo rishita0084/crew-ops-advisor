@@ -710,3 +710,83 @@ def test_our_own_thresholds_are_grounded_too(repo):
     limit = float(repo.rule_param("RULE-DUTY-02", "max_duty_hours", 60))
     for row in result.table["rows"]:
         assert row[4] == round(limit - row[3], 2)
+
+
+def test_a_mid_duty_callout_only_re_crews_the_tail(repo):
+    """C-1017 flies two of P-2217's four sectors and goes sick. DX431 and DX432 are
+    flown; only DX433 and DX434 need a seat."""
+    from app.services import actions
+
+    result = actions.recommend_cover(
+        repo, "P-2217", "Captain", crew_out="C-1017", sectors_flown=2)
+    covered = result.data["options"][0]["covered_flight_ids"]
+    assert [repo.flights[f].flight_no for f in covered] == ["DX433", "DX434"]
+    assert "DX431, DX432 had already been operated" in result.summary
+
+    # the whole-pairing answer is untouched by the new parameter
+    whole = actions.recommend_cover(repo, "P-2217", "Captain", crew_out="C-1017")
+    assert len(whole.data["options"][0]["covered_flight_ids"]) == 4
+
+
+def test_the_tail_is_re_timed_not_just_filtered(repo):
+    """The point of the change. A tail carved out of a duty is a duty period in its
+    own right: its own report, its own length, its own sector-based FDP limit. Filter
+    the leg list while keeping the original 02:30 report and every rule reads wrong."""
+    from app.engine import splitting
+    from app.engine.candidates import build_candidate
+    from app.services.actions import fdp_limit_for
+
+    pairing = repo.pairings["P-2217"]
+    full = pairing.days[0]
+    tail = splitting.tail_after(repo, pairing, 2)[0][0]
+
+    assert tail.report_utc > full.report_utc, "the tail reports later"
+    assert tail.release_utc == full.release_utc, "and still lands when the day lands"
+    assert tail.duty_hours < full.duty_hours
+    # fewer sectors means a HIGHER flight-duty-period limit
+    assert fdp_limit_for(repo, len(tail.flight_ids)) > fdp_limit_for(repo, len(full.flight_ids))
+
+    # and the later report genuinely changes who is callable: C-3310's on-call window
+    # opens at 06:00Z, which the 02:30Z full-day report misses and the tail makes
+    assert not build_candidate(repo, "C-3310", [full], exclude_pairing="P-2217").legal
+    assert build_candidate(repo, "C-3310", [tail], exclude_pairing="P-2217").legal
+
+
+def test_a_mid_duty_callout_carries_later_days_over_whole(repo):
+    """P-2291 is two days. Sick after two sectors leaves the rest of day one AND all
+    of day two to cover -- not just the remainder of the day in progress."""
+    from app.services import actions
+
+    result = actions.recommend_cover(
+        repo, "P-2291", "Captain", crew_out="C-1042", sectors_flown=2)
+    covered = [repo.flights[f].flight_no for f in result.data["options"][0]["covered_flight_ids"]]
+    assert covered == ["DX588", "DX589", "DX590", "DX591"]
+
+
+def test_a_completed_pairing_has_nothing_left_to_cover(repo):
+    """Going sick after the last sector is not a vacancy."""
+    from app.services import actions
+
+    result = actions.recommend_cover(
+        repo, "P-2217", "Captain", crew_out="C-1017", sectors_flown=4)
+    assert result.data["options"] == []
+    assert "nothing left to cover" in result.summary
+
+
+def test_a_mid_duty_callout_is_reachable_in_plain_english(repo):
+    """Four ways a controller says it, one answer."""
+    from app.fallback import structured_query
+
+    for question in [
+        "Captain C-1017 is on P-2217 and falls sick after 2 flights, who covers the rest?",
+        "C-1017 went sick after the second sector on P-2217, what should I do?",
+        "C-1017 falls sick after DX432 on P-2217. Who flies the rest?",
+        "C-1017 has flown two sectors of P-2217 and is now sick, who takes the rest?",
+    ]:
+        result = structured_query.route(repo, question)
+        assert "from the point of the callout" in result.summary, question
+        assert "DX431, DX432 had already been operated" in result.summary, question
+
+    # an ordinary callout must not be dragged into the new path
+    ordinary = structured_query.route(repo, "C-1017 is sick for P-2217, what should I do?")
+    assert "already been operated" not in ordinary.summary

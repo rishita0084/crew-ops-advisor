@@ -9,6 +9,7 @@ from datetime import date
 
 from app.engine import impact as impact_mod
 from app.engine import ranking as ranking_mod
+from app.engine import splitting
 from app.engine.candidates import build_candidate
 from app.engine.state import BASE_STATE, OperationalState
 from app.explain.ledger import EvidenceLedger
@@ -237,19 +238,45 @@ def cancellation_impact(repo, flight_ids: list[str]) -> ToolResult:
 
 def recommend_cover(repo, pairing_id: str, role: str, crew_out: str | None = None,
                     day_index: int | None = None,
-                    also_unavailable: set[str] | None = None) -> ToolResult:
+                    also_unavailable: set[str] | None = None,
+                    sectors_flown: int | None = None) -> ToolResult:
     """Ranked, rule-checked recovery options for one vacancy.
 
     `also_unavailable` is how a controller says "and these are already committed" --
     reserves spent on an earlier call, crew stood down. It is the realistic way cover
     runs out, and it is what makes multi-step swap chains worth searching for.
+
+    `sectors_flown` is how a controller says "he went sick after the second sector".
+    The legs already operated are operated; only the tail needs a seat, and that tail
+    is re-timed into a duty period of its own before any rule sees it -- a two-sector
+    afternoon has a different FDP limit and a different report time from the four-sector
+    day it was carved out of. Left as None, this is exactly the whole-pairing vacancy
+    the engine has always answered.
     """
     led = EvidenceLedger()
     pairing = repo.pairings.get(pairing_id)
     if not pairing:
         return ToolResult(summary=f"No pairing {pairing_id}.", confidence="cannot_answer", ledger=led)
 
-    days = pairing.days if day_index is None else [pairing.days[day_index]]
+    flown: list[str] = []
+    if sectors_flown:
+        days, flown = splitting.tail_after(repo, pairing, sectors_flown)
+        if not days:
+            nos = ", ".join(repo.flights[f].flight_no for f in flown)
+            led.allow(pairing_id, crew_out, *flown,
+                      *[repo.flights[f].flight_no for f in flown])
+            return ToolResult(
+                summary=(
+                    f"{pairing_id} was already complete after {sectors_flown} sector(s) "
+                    f"({nos}). There is nothing left to cover."
+                ),
+                data={"pairing_id": pairing_id, "role": role, "options": [],
+                      "flown_flight_ids": flown, "sectors_flown": sectors_flown},
+                ledger=led, tier=3,
+            )
+    else:
+        days = pairing.days if day_index is None else [pairing.days[day_index]]
+
     exclude = set(also_unavailable or set())
     if crew_out:
         exclude.add(crew_out)
@@ -279,6 +306,11 @@ def recommend_cover(repo, pairing_id: str, role: str, crew_out: str | None = Non
     led.allow(pairing_id, crew_out, *[f for d in days for f in d.flight_ids],
               *[repo.flights[f].flight_no for d in days for f in d.flight_ids])
 
+    flown_nos = [repo.flights[f].flight_no for f in flown]
+    if flown:
+        led.add("rosters.json", f"{pairing_id} sectors already operated", ", ".join(flown_nos))
+        led.allow(*flown, *flown_nos, sectors_flown)
+
     top = options[0] if options else None
     if result["legal_count"] == 0 and result["chain_count"] == 0:
         summary = (
@@ -290,11 +322,20 @@ def recommend_cover(repo, pairing_id: str, role: str, crew_out: str | None = Non
         confidence = "review"
     else:
         committed = len(exclude) - (1 if crew_out else 0)
+        # a part-flown duty has to say what was already operated, or "covering all 2
+        # flights" reads as though the other two legs never existed
+        carried = (
+            f" {', '.join(flown_nos)} had already been operated, so only the tail of "
+            f"{pairing_id} needs a seat."
+            if flown else ""
+        )
         summary = (
             f"{result['legal_count']} legal option(s) cover {pairing_id}"
+            + (" from the point of the callout" if flown else "")
             + (f" with {committed} further crew already committed" if committed else "")
             + f". Recommended: {top['action']} at INR {top['cost_inr']:,}, covering "
             f"{top['coverage']}."
+            + carried
             + (
                 f" Direct cover is thin, so {result['chain_count']} multi-step swap(s) "
                 f"were searched as well."

@@ -141,6 +141,13 @@ TOOL_SPECS: list[dict] = [
                        "why each rejected candidate was rejected.",
         "parameters": {"type": "object", "properties": {
             "pairing_id": _PAIRING, "role": _ROLE, "crew_out": _CREW,
+            "sectors_flown": {
+                "type": "integer",
+                "description": "Sectors already operated when the crew member became "
+                               "unavailable. Use only for a mid-duty callout ('sick "
+                               "after the second sector'); omit for an ordinary one, "
+                               "where the whole pairing is vacant.",
+            },
         }, "required": ["pairing_id", "role"]},
     },
     {
@@ -353,7 +360,9 @@ def dispatch(repo, name: str, args: dict) -> ToolResult:
         return A.cancellation_impact(repo, args["flight_ids"])
 
     if name == "recommend_recovery":
-        return A.recommend_cover(repo, args["pairing_id"], args["role"], args.get("crew_out"))
+        return A.recommend_cover(repo, args["pairing_id"], args["role"],
+                                 args.get("crew_out"),
+                                 sectors_flown=args.get("sectors_flown"))
 
     if name == "get_earliest_report":
         return L.rest_calculator(repo, args["release_utc"], _d(args["date"]) or default_date)

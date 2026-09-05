@@ -186,6 +186,43 @@ _NOT_HELD_RE = re.compile(
 )
 
 
+_WORD_NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+                 "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5}
+_COUNT = r"(\d+|one|two|three|four|five|six)"
+_SECTOR = r"(?:flight|sector|leg)s?"
+
+_AFTER_N_RE = re.compile(
+    rf"\b(?:after|following|completed|flown|operated|done)\s+(?:the\s+)?{_COUNT}\s+{_SECTOR}\b"
+)
+_NTH_RE = re.compile(
+    rf"\b(?:after|during|on)\s+the\s+(first|second|third|fourth|fifth)\s+{_SECTOR}\b"
+)
+_AFTER_FLIGHT_RE = re.compile(r"\bafter\s+(DX\d{3})\b", re.I)
+
+
+def _sectors_flown(repo, low: str, pairing_id: str | None) -> int | None:
+    """How many sectors were already operated before the crew member went sick.
+
+    "He went sick after the second sector" is not the same vacancy as "he never
+    reported": the legs already flown are flown, and only the tail needs a seat.
+    Returns None for an ordinary callout, which is the overwhelmingly common case.
+    """
+    match = _AFTER_N_RE.search(low) or _NTH_RE.search(low)
+    if match:
+        token = match.group(1)
+        return _WORD_NUMBERS.get(token, int(token) if token.isdigit() else None)
+
+    # "went sick after DX432" -- resolve the flight to its position in the pairing
+    flight = _AFTER_FLIGHT_RE.search(low)
+    if flight and pairing_id and pairing_id in repo.pairings:
+        wanted = flight.group(1).upper()
+        legs = [f for day in repo.pairings[pairing_id].days for f in day.flight_ids]
+        for index, fid in enumerate(legs, start=1):
+            if repo.flights[fid].flight_no.upper() == wanted:
+                return index
+    return None
+
+
 def route(repo, question: str) -> ToolResult:
     """Map a controller's question to exactly one tool call."""
     text = question.strip()
@@ -274,7 +311,8 @@ def route(repo, question: str) -> ToolResult:
             # are filling -- otherwise the desk is told to call out a crew member the
             # controller has just said is unavailable
             return A.recommend_cover(
-                repo, pairing_id, role, crew_out=crew_out, also_unavailable=set(others)
+                repo, pairing_id, role, crew_out=crew_out, also_unavailable=set(others),
+                sectors_flown=_sectors_flown(repo, low, pairing_id),
             )
         if crew_out:
             state = BASE_STATE.with_crew_unavailable(crew_out, "sick")

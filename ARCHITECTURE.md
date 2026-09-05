@@ -47,7 +47,8 @@ true.** Everything below follows from that one line.
     ║  Candidates      every same-rank crew, fully rule-checked     ║
     ║  Joint           simultaneous vacancies, no crew used twice   ║
     ║  Closure         delay-to-reopen per leg, FDP-checked         ║
-    ║  Splitting       re-crew the illegal tail of a delayed duty   ║
+    ║  Splitting       re-crew the tail of a duty: delayed, closed  ║
+    ║                  out, or abandoned mid-way by a sick crew     ║
     ║  Chains          beam search over multi-step swaps            ║
     ║  Relaxation      invert the margin: what would make it legal  ║
     ║  Cost            callout · deadhead · delay · cancellation    ║

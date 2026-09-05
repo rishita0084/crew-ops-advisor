@@ -66,6 +66,13 @@ That one field is why three separate features are possible:
 - **Near-miss analysis inverts it.** Given `-1.33h` on RULE-DUTY-02, the relaxation engine
   can search for a change worth ≥1.33h — dropping the last leg of a day releases 3.25h, so
   it proposes exactly that.
+- **A duty is divisible, and the tail is a duty in its own right.** Whenever only part
+  of a duty needs new crew -- a delay, a station closure, or a crew member going sick
+  after the second sector -- the remaining legs are re-timed into their own duty
+  period before any rule sees them. That matters: two sectors carry a 13h FDP limit
+  where four carry 12h, and a later report time changes which reserves are in their
+  on-call window. On P-2217 the full day is callable only by C-3305 and the tail only
+  by C-3310 -- filtering the leg list instead would have reported both wrong.
 - **Duty splitting binary-searches it.** The longest legal prefix of a delayed duty is
   found by walking sectors off the end until the margin turns positive.
 
