@@ -18,6 +18,7 @@ from app.explain.verifier import GroundingResult, redact, verify
 from app.fallback import structured_query
 from app.llm import tools as tool_mod
 from app.llm.provider import ChatMessage, ProviderError, get_provider
+from app.services.entities import extract
 from app.services.lookups import ToolResult
 
 MAX_ROUNDS = 4
@@ -39,6 +40,7 @@ figures behind them.
 4. Write like a controller talks: short, specific, decision-first. Lead with the answer, \
 then the reason. No preamble, no restating the question.
 5. Never invent a crew id, flight number or pairing id. Use exactly the ones the tools returned.
+6. If the question does not say WHICH crew member, pairing or flight it is about, ask. "Today's captain called in sick" names no captain -- there are 28 of them. Ask which one, or which pairing. Do not substitute a broad search (every captain at a base, say) for the answer: a confident answer to a question the controller did not ask is worse than a question back. Only carry an id over from earlier in the conversation if the controller is plainly still talking about that same crew member or pairing.
 
 Choosing tools. Each of these does the whole job in ONE call -- do not rebuild them by \
 checking candidates one at a time:
@@ -105,18 +107,46 @@ def answer(repo, question: str, history: list[dict] | None = None) -> AdvisorAns
         return _deterministic(repo, question, started, "llm_unavailable", history)
 
 
+def _carried_referents(question: str, history: list[dict]) -> list[str]:
+    """Which ids from the thread may be read into an under-specified question.
+
+    A follow-up like "why not the cheapest option?" carries no ids of its own and has
+    to be resolved against the thread. The obvious way to do that -- glue the recent
+    turns onto the question and re-route -- is wrong, because the *previous question's
+    intent* then wins. Ask "which captains are based in DEL?", then "today's captain
+    called in sick, who should replace them?", and the desk confidently re-answers the
+    DEL lookup: a real answer to a question nobody asked, which is worse than a refusal.
+
+    So the thread may supply **referents** -- which specific crew member, pairing or
+    flight we were discussing -- and nothing else. It may not supply a rank, a station,
+    a date or a verb, because those are what make one question a different question
+    from another. And it may only do so when the current question names no referent of
+    its own; a self-contained question is never reinterpreted against the thread.
+    """
+    here = extract(question)
+    if here.crew_ids or here.pairing_ids or here.flight_ids or here.flight_nos or here.tails:
+        return []
+
+    carried: list[str] = []
+    for turn in reversed(history[-4:]):
+        if turn.get("role") != "user":
+            continue
+        ent = extract(turn.get("content", ""))
+        for value in (*ent.crew_ids, *ent.pairing_ids, *ent.flight_ids,
+                      *ent.flight_nos, *ent.tails):
+            if value not in carried:
+                carried.append(value)
+    return carried
+
+
 def _deterministic(repo, question: str, started: float, reason: str,
                    history: list[dict] | None = None) -> AdvisorAnswer:
     result = structured_query.route(repo, question)
 
-    # A follow-up like "why not the cheapest option?" carries no ids of its own. The
-    # LLM would resolve it from the thread; the fallback has to be given the thread.
     if result.confidence == "cannot_answer" and history:
-        recent = " ".join(
-            turn["content"] for turn in history[-4:] if turn.get("role") == "user"
-        )
-        if recent:
-            retry = structured_query.route(repo, f"{recent} {question}")
+        carried = _carried_referents(question, history)
+        if carried:
+            retry = structured_query.route(repo, f"{question} {' '.join(carried)}")
             if retry.confidence != "cannot_answer":
                 result = retry
 

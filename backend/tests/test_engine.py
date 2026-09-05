@@ -573,3 +573,48 @@ def test_a_single_match_reads_like_a_sentence(repo):
     many = lookups.crew_search(repo, rank="Captain", base="BLR")
     assert many.data["count"] > 1
     assert many.summary.startswith(f"{many.data['count']} crew members match ")
+
+
+def test_an_unrelated_earlier_turn_is_not_used_as_the_answer(repo):
+    """The thread may supply which crew member we mean. It may not supply the question.
+
+    Asking "which captains are based in DEL?" and then "today's captain called in
+    sick, who should replace them?" used to confidently re-serve the DEL lookup --
+    a real answer, fully grounded, to a question nobody asked.
+    """
+    from app.llm import orchestrator
+
+    history = [
+        {"role": "user", "content": "which captains are based in DEL?"},
+        {"role": "assistant", "content": "1 crew member matches Captain based at DEL."},
+    ]
+    answer = orchestrator._deterministic(
+        repo, "Today's captain just called in sick. Who should replace them?",
+        0.0, "test", history,
+    )
+    assert answer.confidence == "cannot_answer"
+    assert "DEL" not in answer.text
+
+    # ...but a real follow-up, about the same pairing, still resolves from the thread
+    thread = [{"role": "user", "content": "Captain C-1042 is sick for P-2291, what should I do?"}]
+    followup = orchestrator._deterministic(repo, "why not the cheapest option?", 0.0, "test", thread)
+    assert followup.confidence != "cannot_answer"
+    assert "P-2291" in followup.text
+
+
+def test_a_long_rate_limit_wait_is_not_slept_through(repo):
+    """A daily cap says "try again in 54s". Sleeping through that three times turned
+    a fallback that should be instant into a 24-second stall at the desk."""
+    import httpx
+    from app.llm.providers import openai_compat
+
+    daily_cap = httpx.Response(
+        429,
+        headers={"retry-after": "54"},
+        text='{"error":{"message":"Rate limit reached ... tokens per day (TPD)"}}',
+    )
+    per_minute = httpx.Response(429, headers={"retry-after": "2"}, text="{}")
+
+    assert openai_compat._retry_after(daily_cap) == 54.0, "the real wait, unclamped"
+    assert openai_compat._retry_after(daily_cap) > openai_compat.MAX_BACKOFF_SECONDS
+    assert openai_compat._retry_after(per_minute) <= openai_compat.MAX_BACKOFF_SECONDS
