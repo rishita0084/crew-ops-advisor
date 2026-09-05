@@ -18,3 +18,6 @@ frontend/.env
 # "Do not ship to participants". It is judging material, so it is not ours to
 # republish. Nothing in the codebase reads it.
 internal/
+
+# Personal study notes, not part of the submission.
+WALKTHROUGH.md

@@ -161,6 +161,37 @@ it to match the documentation, we removed the table and corrected the documentat
 Tier-3 answers land in 10–40 ms computing from scratch, so it would have been an index
 solving nothing.
 
+## 7b. Nothing operational is written down twice
+
+Four facts the engine needs are stated by the dataset, so `domain/conventions.py` derives
+them at load rather than repeating them in code:
+
+| Fact | Derived from |
+|---|---|
+| The snapshot ("now") | `duty_clocks.as_of_utc` — identical on all 150 records |
+| The operating week | min/max `flights.date` |
+| Crew complement per aircraft type | the shapes actually rostered (A320 1/1/1/3, ATR72 1/1/1/1) |
+| Report / release brackets | the observed gap to first departure and last arrival (60 / 30 min) |
+
+Each derivation asserts the dataset agrees with itself and raises if not — two different
+complements for one aircraft type is something a controller should be told about, not
+quietly averaged away.
+
+Rule limits already came from the `rules` table and costs from `costs.json`. What remains
+hardcoded is only what genuinely is not in the data: search bounds (`BEAM_WIDTH`,
+`SHORTLIST`), alert thresholds (`DUTY_WARN_RATIO`), timeouts, and float epsilons. Those
+are engineering choices, not facts about the airline.
+
+The single exception is `REOPEN_BUFFER_MINUTES` in the closure engine. The dataset never
+states a reopening buffer, but its answer key implies one: every per-leg delay equals
+(reopen + 30 min) minus the leg's scheduled time at the closed station, across all 13
+legs. We inferred the rule that produces the answers rather than hardcoding the answers,
+and a test pins all 13.
+
+A test also asserts the engine never reads the wall clock. Exactly one file may —
+`scorecard.py`, stamping when a run happened. Mixing real time with the frozen snapshot
+would produce answers that look plausible and are silently wrong.
+
 ## 8. What we deliberately did not build
 
 - **A prediction model.** `risk_signals.json` is a provided input and the brief says treat

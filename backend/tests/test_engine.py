@@ -445,3 +445,67 @@ def test_callout_draft_covers_every_item_the_key_requires(repo):
 
     assert result.data["overnight_stations"] == ["DEL"]
     assert len(result.data["days"]) == 2
+
+
+# ------------------------------------------------------- derived conventions
+
+def test_operating_conventions_are_derived_not_hardcoded(repo):
+    """Snapshot, week, complement and duty brackets all come from the data.
+
+    Each of these was once written down in the code. A second source of truth that a new
+    dataset could silently invalidate is exactly the failure mode this project exists to
+    avoid, so they are derived and asserted against the data here.
+    """
+    import json as _json
+
+    from app.config import DATA_DIR, SNAPSHOT_UTC, WEEK_END, WEEK_START
+
+    with open(DATA_DIR / "duty_clocks.json", encoding="utf-8") as fh:
+        stamps = {c["as_of_utc"] for c in _json.load(fh)}
+    assert len(stamps) == 1
+    assert SNAPSHOT_UTC.strftime("%Y-%m-%dT%H:%M:%SZ") == next(iter(stamps))
+
+    with open(DATA_DIR / "flights.json", encoding="utf-8") as fh:
+        dates = {f["date"] for f in _json.load(fh)}
+    assert (WEEK_START, WEEK_END) == (min(dates), max(dates))
+
+    conv = repo.conventions
+    # complement matches what is actually rostered, per aircraft type
+    for pairing in repo.pairings.values():
+        actype = repo.day_aircraft_type(pairing.days[0])
+        counts: dict[str, int] = {}
+        for role in pairing.crew.values():
+            counts[role] = counts.get(role, 0) + 1
+        assert counts == conv.complement[actype], f"{pairing.pairing_id} breaks {actype}"
+
+    # report is one hour before the first departure, release 30 min after the last arrival
+    for pairing in repo.pairings.values():
+        for day in pairing.days:
+            legs = sorted((repo.flights[f] for f in day.flight_ids), key=lambda f: f.dep_utc)
+            assert legs[0].dep_utc - day.report_utc == conv.report_lead
+            assert day.release_utc - legs[-1].arr_utc == conv.release_trail
+
+
+def test_engine_never_reads_the_wall_clock(repo):
+    """Every operational date resolves from the frozen snapshot, not from today.
+
+    Mixing the two would produce answers that look plausible and are silently wrong, so
+    the only permitted real-clock use is the scorecard's "generated at" stamp.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "app"
+    offenders = set()
+    for path in root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"datetime\.now\(|date\.today\(|utcnow\(", text):
+            # as_posix so the assertion does not depend on the OS path separator
+            offenders.add(path.relative_to(root).as_posix())
+
+    # scorecard.py stamps "generated at", which is a genuine real-world fact.
+    # Anything else reading the clock would silently mix real time with the frozen
+    # snapshot and produce answers that look plausible and are wrong.
+    assert offenders == {"services/scorecard.py"}, (
+        f"unexpected wall-clock use in the engine: {sorted(offenders)}"
+    )

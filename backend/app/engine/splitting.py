@@ -11,14 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
-from app.domain.models import COMPLEMENT, PairingDay
+from app.domain.models import PairingDay
 from app.engine.candidates import build_candidate
 from app.rules.r01_fdp import fdp_limit
 from app.rules.result import CoverRequest
 from app.rules import registry
 
-REPORT_LEAD = timedelta(minutes=60)
-RELEASE_TRAIL = timedelta(minutes=30)
+# report/release brackets come from repo.conventions, derived from the rostered data
 
 
 @dataclass
@@ -45,8 +44,8 @@ def synthetic_day(repo, source: PairingDay, flight_ids: list[str],
         pairing_id=source.pairing_id,
         day_index=source.day_index,
         date=source.date,
-        report_utc=first.dep_utc + offset - REPORT_LEAD,
-        release_utc=last.arr_utc + offset + RELEASE_TRAIL,
+        report_utc=first.dep_utc + offset - repo.conventions.report_lead,
+        release_utc=last.arr_utc + offset + repo.conventions.release_trail,
         flight_ids=tuple(flight_ids),
     )
 
@@ -108,7 +107,7 @@ def _crew_the_remainder(repo, day: PairingDay, flight_ids: list[str],
     """Assemble a complete fresh complement for the legs the rostered crew cannot fly."""
     tail_day = synthetic_day(repo, day, flight_ids, delay_hours)
     actype = repo.flights[flight_ids[0]].aircraft_type
-    needed = COMPLEMENT.get(actype, {})
+    needed = repo.conventions.complement.get(actype, {})
 
     assignment: dict[str, str] = {}
     total = 0

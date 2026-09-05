@@ -132,6 +132,11 @@ class Repository:
 
         self._build_indexes()
 
+        # derived from the data, never hardcoded -- see domain/conventions.py
+        from app.domain.conventions import derive
+
+        self.conventions = derive(self)
+
     def _build_indexes(self) -> None:
         self.roster: dict[str, list[DutyBlock]] = defaultdict(list)
         self.flight_to_pairing: dict[str, str] = {}

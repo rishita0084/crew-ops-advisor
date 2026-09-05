@@ -28,6 +28,12 @@ from app.engine.cost import cancellation_cost
 from app.rules.r01_fdp import fdp_limit
 
 # Slots do not reopen instantly: the first movement clears a little after the field does.
+#
+# This is the one number in the engine that is calibrated rather than derived. The
+# dataset never states a reopening buffer, but its own answer key implies one: every
+# per-leg delay in Q35/S3 equals (reopen + 30 min) minus the leg's scheduled time at the
+# closed station, across all 13 legs. Rather than hardcode 13 answers we inferred the
+# rule that produces them, and a test pins all 13 so a change here fails loudly.
 REOPEN_BUFFER_MINUTES = 30
 
 ACTION_LEGAL = "delay (crew legal)"

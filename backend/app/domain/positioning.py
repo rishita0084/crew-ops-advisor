@@ -16,8 +16,10 @@ from datetime import timedelta
 
 from app.domain.models import Flight, PairingDay
 
+# Minimum ground time between a positioning arrival and signing on for the next duty.
+# Not stated anywhere in the dataset, so it stays an explicit assumption rather than a
+# derivation pretending to be one.
 TRANSIT_MINUTES = 15
-REPORT_LEAD_MINUTES = 60
 
 
 @dataclass(frozen=True)
@@ -55,7 +57,9 @@ def plan(repo, crew_id: str, first_day: PairingDay) -> Positioning:
         )
 
     best = min(candidates, key=lambda f: f.arr_utc)
-    earliest_departure = best.arr_utc + timedelta(minutes=TRANSIT_MINUTES + REPORT_LEAD_MINUTES)
+    earliest_departure = (
+        best.arr_utc + timedelta(minutes=TRANSIT_MINUTES) + repo.conventions.report_lead
+    )
     delay = max(0.0, round((earliest_departure - origin_flight.dep_utc).total_seconds() / 3600.0, 2))
     return Positioning(
         required=True, feasible=True, flight=best, delay_hours=delay,

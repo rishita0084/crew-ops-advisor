@@ -8,11 +8,9 @@ from app.domain.time_utils import hours_between
 
 PILOT_RANKS = ("Captain", "First Officer")
 
-# Required complement per aircraft type (dataset README).
-COMPLEMENT = {
-    "A320": {"Captain": 1, "First Officer": 1, "Senior Cabin Crew": 1, "Cabin Crew": 3},
-    "ATR72": {"Captain": 1, "First Officer": 1, "Senior Cabin Crew": 1, "Cabin Crew": 1},
-}
+# Crew complement per aircraft type is NOT written down here: it is derived from the
+# shapes actually rostered in the data (repo.conventions.complement). Hardcoding it
+# would be a second source of truth that a fleet change could silently invalidate.
 
 
 @dataclass(frozen=True)
