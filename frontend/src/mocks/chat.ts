@@ -125,7 +125,6 @@ export const mockReserveTable: AdvisorResponse = {
       ]
     ]
   },
-  "notification": null,
   "evidence": [
     {
       "source": "reserve_pool.json",
@@ -257,7 +256,6 @@ export const mockFollowUp: AdvisorResponse = {
       ]
     ]
   },
-  "notification": null,
   "evidence": [
     {
       "source": "crew.json",
@@ -322,7 +320,6 @@ export const mockCannotAnswer: AdvisorResponse = {
       "flight DX412 does not appear in the evidence for this answer"
     ]
   },
-  "notification": null,
   "evidence": [],
   "timing_ms": 0
 };
@@ -420,7 +417,6 @@ export const mockSimulateResponse: AdvisorResponse = {
       "legal": false
     }
   ],
-  "notification": null,
   "evidence": [
     {
       "source": "crew.json",

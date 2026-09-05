@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import { ThemeToggle } from './components/common/ThemeToggle';
 import { ConsolePage } from './pages/ConsolePage';
+import { ConnectPage } from './pages/ConnectPage';
 import { ScorecardPage } from './pages/ScorecardPage';
 
 const SNAPSHOT_LABEL = '14 Sep 2026 · 18:00Z · BLR';
@@ -29,6 +30,9 @@ function TopBar() {
           <NavLink to="/scorecard" className={linkClass}>
             Scorecard
           </NavLink>
+          <NavLink to="/connect" className={linkClass}>
+            Connect
+          </NavLink>
           <span aria-hidden="true" className="mx-1 h-4 w-px bg-line" />
           <ThemeToggle />
         </nav>
@@ -45,6 +49,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<ConsolePage />} />
           <Route path="/scorecard" element={<ScorecardPage />} />
+          <Route path="/connect" element={<ConnectPage />} />
         </Routes>
       </div>
     </BrowserRouter>);

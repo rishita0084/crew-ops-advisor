@@ -148,6 +148,42 @@ def alerts(date_: str | None = Query(default=None, alias="date")) -> dict:
                               int((time.perf_counter() - started) * 1000))
 
 
+@router.get("/mcp")
+def mcp_info() -> dict:
+    """Everything a client needs to connect this engine over MCP.
+
+    Served rather than hardcoded in the UI for two reasons: the config can then carry
+    the absolute paths for THIS machine (the usual reason a first connection fails), and
+    the tool list is generated from the same specs the server registers, so the page
+    cannot drift from the code.
+    """
+    import json as _json
+    import sys as _sys
+
+    from app.config import BACKEND_DIR
+    from app.llm.tools import tool_catalogue
+
+    interpreter = _sys.executable
+    script = str(BACKEND_DIR / "mcp_server" / "index.py")
+    config = {
+        "mcpServers": {
+            "crew-ops": {"command": interpreter, "args": [script]}
+        }
+    }
+    return {
+        "server_name": "crew-ops",
+        "transport": "stdio",
+        "command": interpreter,
+        "args": [script],
+        "config_json": _json.dumps(config, indent=2),
+        "config_path": {
+            "windows": "%APPDATA%\Claude\claude_desktop_config.json",
+            "macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+        },
+        "tools": tool_catalogue(),
+    }
+
+
 @router.get("/scorecard")
 def scorecard() -> dict:
     """Runs the dataset's own 38 questions and 6 scenarios through the live engine."""

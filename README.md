@@ -427,6 +427,10 @@ Then ask Claude Desktop *"Using crew-ops, Captain C-1042 just called in sick —
 I do?"* and it answers from this engine. The API server does not need to be running; the
 client launches its own process and talks over stdin/stdout.
 
+The console has a **Connect** page (nav bar) that serves this config with the real paths
+for whichever machine the advisor is running on, plus the live tool list and the
+troubleshooting — so a judge can connect without leaving the app.
+
 **Full guide: [MCP.md](MCP.md)** — why you would want it, the complete tool list, transport
 detail, and the troubleshooting that matters (chiefly: use the absolute script path, not
 `-m mcp_server.index`, because the client does not apply a working directory).

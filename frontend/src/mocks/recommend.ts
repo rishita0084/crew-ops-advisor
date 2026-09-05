@@ -523,7 +523,6 @@ export const mockRecommendResponse: AdvisorResponse = {
       "reasoning": "Baseline fallback. 972 seats to reaccommodate; shown so every cheaper option can be read against it."
     }
   ],
-  "notification": null,
   "evidence": [
     {
       "source": "computed",
@@ -870,7 +869,6 @@ export const mockRelaxationResponse: AdvisorResponse = {
       "reasoning": "Legal but strands 162 passengers."
     }
   ],
-  "notification": null,
   "evidence": [
     {
       "source": "RULE-FDP-01",

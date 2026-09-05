@@ -112,6 +112,24 @@ export interface AdvisorResponse {
   timing_ms: number;
 }
 
+export interface McpTool {
+  name: string;
+  tier: number;
+  description: string;
+}
+
+/** How to reach this engine over MCP. Served by the backend so the paths are the
+ *  real ones for the machine it is running on. */
+export interface McpInfo {
+  server_name: string;
+  transport: string;
+  command: string;
+  args: string[];
+  config_json: string;
+  config_path: {windows: string;macos: string;};
+  tools: McpTool[];
+}
+
 export interface ScorecardResponse {
   generated_at: string;
   total_ms: number;

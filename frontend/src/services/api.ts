@@ -6,6 +6,7 @@ import type {
   AdvisorResponse,
   ImpactRequest,
   RecommendRequest,
+  McpInfo,
   ScorecardResponse,
   SimulateRequest } from
 '../types/api';
@@ -14,6 +15,7 @@ import { mockImpactResponse } from '../mocks/impact';
 import { mockRecommendResponse } from '../mocks/recommend';
 import { mockAlertsResponse } from '../mocks/alerts';
 import { mockScorecard } from '../mocks/scorecard';
+import { mockMcpInfo } from '../mocks/mcp';
 
 export function askAdvisor(question: string, sessionId?: string): Promise<AdvisorResponse> {
   if (USE_MOCKS) return delay(resolveMockChat(question));
@@ -40,6 +42,11 @@ export function recommend(body: RecommendRequest): Promise<AdvisorResponse> {
 export function getAlerts(date?: string): Promise<AdvisorResponse> {
   if (USE_MOCKS) return delay(mockAlertsResponse, 320);
   return get<AdvisorResponse>('/api/alerts', { date });
+}
+
+export function getMcpInfo(): Promise<McpInfo> {
+  if (USE_MOCKS) return delay(mockMcpInfo, 200);
+  return get<McpInfo>('/api/mcp');
 }
 
 export function getScorecard(): Promise<ScorecardResponse> {

@@ -43,6 +43,7 @@ def envelope_for(repo, question: str) -> dict:
 # required AND nullable, so stripping its null would break the type.
 OPTIONAL_ENVELOPE_KEYS = (
     "table", "impact", "options", "relaxations", "alerts", "before_after",
+    "notification",
 )
 
 
@@ -100,6 +101,29 @@ def main() -> None:
     )
     card = run_scorecard(repo)
 
+    # MCP connection details. Paths are placeholders in the fixture: the live endpoint
+    # serves the real ones for whichever machine is running, and baking this machine's
+    # paths into a committed file would be wrong for everyone else.
+    from app.llm.tools import tool_catalogue
+
+    mcp = {
+        "server_name": "crew-ops",
+        "transport": "stdio",
+        "command": "<repo>/backend/.venv/Scripts/python.exe",
+        "args": ["<repo>/backend/mcp_server/index.py"],
+        "config_json": json.dumps(
+            {"mcpServers": {"crew-ops": {
+                "command": "<repo>/backend/.venv/Scripts/python.exe",
+                "args": ["<repo>/backend/mcp_server/index.py"]}}},
+            indent=2,
+        ),
+        "config_path": {
+            "windows": r"%APPDATA%\Claude\claude_desktop_config.json",
+            "macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+        },
+        "tools": tool_catalogue(),
+    }
+
     (OUT / "chat.ts").write_text(
         HEADER
         + "\nimport type { AdvisorResponse } from '../types/api';\n"
@@ -130,6 +154,11 @@ def main() -> None:
         + ts("mockAlertsResponse", "AdvisorResponse", alerts),
         encoding="utf-8",
     )
+    (OUT / "mcp.ts").write_text(
+        HEADER + "\nimport type { McpInfo } from '../types/api';\n\n"
+        + ts("mockMcpInfo", "McpInfo", mcp),
+        encoding="utf-8",
+    )
     (OUT / "scorecard.ts").write_text(
         HEADER + "\nimport type { ScorecardResponse } from '../types/api';\n\n"
         + ts("mockScorecard", "ScorecardResponse", card),
@@ -137,7 +166,7 @@ def main() -> None:
     )
 
     print(f"Recorded fixtures into {OUT}")
-    for name in ("chat", "impact", "recommend", "alerts", "scorecard"):
+    for name in ("chat", "impact", "recommend", "alerts", "scorecard", "mcp"):
         print(f"  {name}.ts")
 
 

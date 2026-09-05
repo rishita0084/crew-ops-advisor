@@ -195,7 +195,6 @@ export const mockAlertsResponse: AdvisorResponse = {
       "date": "2026-09-15"
     }
   ],
-  "notification": null,
   "evidence": [
     {
       "source": "RULE-DUTY-02",

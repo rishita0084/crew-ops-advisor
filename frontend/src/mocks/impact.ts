@@ -208,7 +208,6 @@ export const mockImpactResponse: AdvisorResponse = {
       ]
     }
   },
-  "notification": null,
   "evidence": [
     {
       "source": "computed",

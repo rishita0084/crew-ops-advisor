@@ -156,6 +156,37 @@ TOOL_SPECS: list[dict] = [
 ]
 
 
+TOOL_TIERS: dict[str, int] = {
+    "get_crew_profile": 1,
+    "search_crew": 1,
+    "get_reserves": 1,
+    "get_duty_clock": 1,
+    "find_crew_near_duty_limit": 1,
+    "search_flights": 1,
+    "get_expiring_certifications": 1,
+    "get_pairing": 1,
+    "get_earliest_report": 1,
+    "analyse_disruption": 2,
+    "check_assignment_legality": 2,
+    "get_cancellation_impact": 2,
+    "get_alerts": 2,
+    "recommend_recovery": 3,
+    "draft_crew_notification": 3,
+}
+
+
+def tool_catalogue() -> list[dict]:
+    """Name, tier and description for every tool, for the UI and for MCP clients."""
+    return [
+        {
+            "name": spec["name"],
+            "tier": TOOL_TIERS.get(spec["name"], 1),
+            "description": spec["description"],
+        }
+        for spec in TOOL_SPECS
+    ]
+
+
 # Which tools are worth offering for which shape of question. Sending all fifteen every
 # round costs ~1,500 tokens of schema and gives the model fifteen ways to go wrong; the
 # deterministic layer already knows roughly what is being asked, so it narrows the menu
