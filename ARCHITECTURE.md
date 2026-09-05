@@ -70,9 +70,35 @@ true.** Everything below follows from that one line.
                                  │
                   ┌──────────────▼──────────────┐
                   │  SQLite (16 tables)         │
-                  │  loaded once into memory    │
+                  │  rebuilt from JSON if       │
+                  │  missing; loaded once into  │
+                  │  memory, then read-only     │
                   └─────────────────────────────┘
 ```
+
+### The store bootstraps itself
+
+The database is a cache of the committed JSON, not a separate source of truth, so the app
+imports it at startup when the file is absent rather than refusing to start. That matters
+on any host with an ephemeral filesystem — a redeploy keeps the code and the dataset but
+loses the generated file — and it removes the setup step a first-time reader is most
+likely to miss.
+
+### Conventions come from the data, not from the code
+
+Four facts the engine needs are stated by the dataset, so `domain/conventions.py` derives
+them at load instead of repeating them:
+
+| Fact | Derived from |
+|---|---|
+| The snapshot ("now") | `duty_clocks.as_of_utc` |
+| The operating week | min/max `flights.date` |
+| Crew complement per aircraft type | the shapes actually rostered |
+| Report / release brackets | the observed gap to first departure and last arrival |
+
+Each derivation asserts the dataset agrees with itself and raises if it does not. Writing
+any of these down in code would create a second source of truth that a new dataset could
+silently invalidate — the engine would keep answering, confidently, about the wrong week.
 
 ## 2. What crosses the boundary
 
@@ -171,7 +197,7 @@ missing their rule ids, and a recovery intent that never matched. Every one surf
 moment the checks became exact.
 
 ```
-Tier 1 16/16 · Tier 2 14/14 · Tier 3 8/8 · Scenarios 6/6 · 36 tests · ~460 ms
+Tier 1 16/16 · Tier 2 14/14 · Tier 3 8/8 · Scenarios 6/6 · 38 tests · ~460 ms
 ```
 
 Answer keys are fixtures only. No application code reads them and nothing caches their

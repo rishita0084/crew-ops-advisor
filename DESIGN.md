@@ -192,6 +192,23 @@ A test also asserts the engine never reads the wall clock. Exactly one file may 
 `scorecard.py`, stamping when a run happened. Mixing real time with the frozen snapshot
 would produce answers that look plausible and are silently wrong.
 
+## 7c. The database is a cache, not a source of truth
+
+The SQLite file is generated from the committed JSON, so the app imports it at startup
+when it is missing rather than refusing to start. Two consequences worth having:
+
+- **Ephemeral hosting works.** A redeploy keeps the code and the dataset but loses the
+  generated file. Refusing to boot in that situation would be treating a cache like state.
+- **One less setup step to miss.** A first-time reader who skips `import_data.py` gets a
+  working app and a log line explaining what happened, rather than a stack trace.
+
+The guard after the rebuild is deliberate: if the import runs and the file still is not
+there, that is a real failure and it raises. Silently continuing to `get_repository()`
+would turn a missing dataset into a confusing error much further downstream.
+
+Contributed by an outside PR, which is a fair signal that the deployment story was the
+weakest part of the setup.
+
 ## 8. What we deliberately did not build
 
 - **A prediction model.** `risk_signals.json` is a provided input and the brief says treat

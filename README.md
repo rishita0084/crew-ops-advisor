@@ -503,7 +503,7 @@ backend/
   app/api/                FastAPI routes + Pydantic mirrors of the TS contract
   mcp_server/             same tools over MCP
   scripts/                import_data · audit · run_scorecard · record_fixtures
-  tests/                  36 tests
+  tests/                  38 tests
 frontend/src/             React + TS console (types/api.ts is the contract)
 ARCHITECTURE.md           the LLM/deterministic boundary, drawn
 DESIGN.md                 why it is built this way: trade-offs, decisions we
