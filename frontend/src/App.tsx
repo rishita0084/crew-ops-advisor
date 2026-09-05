@@ -14,7 +14,7 @@ function TopBar() {
 
 
   return (
-    <header className="border-b border-line bg-void">
+    <header className="shrink-0 border-b border-line bg-void">
       <div className="mx-auto flex w-full max-w-page flex-wrap items-center gap-4 px-5 py-3">
         <div className="flex items-baseline gap-2">
           <span className="text-base font-semibold tracking-tightest text-fg">
@@ -44,13 +44,18 @@ function TopBar() {
 export function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-full w-full bg-void">
+      {/* Fixed viewport height from lg up, so the header and the ask bar stay put and
+          only the conversation scrolls. Below lg the page scrolls normally, which is the
+          right behaviour on a phone. */}
+      <div className="flex min-h-full w-full flex-col bg-void lg:h-screen lg:overflow-hidden">
         <TopBar />
-        <Routes>
-          <Route path="/" element={<ConsolePage />} />
-          <Route path="/scorecard" element={<ScorecardPage />} />
-          <Route path="/connect" element={<ConnectPage />} />
-        </Routes>
+        <div className="flex-1 lg:min-h-0">
+          <Routes>
+            <Route path="/" element={<ConsolePage />} />
+            <Route path="/scorecard" element={<ScorecardPage />} />
+            <Route path="/connect" element={<ConnectPage />} />
+          </Routes>
+        </div>
       </div>
     </BrowserRouter>);
 

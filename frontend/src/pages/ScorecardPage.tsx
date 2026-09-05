@@ -26,7 +26,7 @@ export function ScorecardPage() {
   const questionsTotal = data ? data.tiers.reduce((sum, tier) => sum + tier.total, 0) : 0;
 
   return (
-    <main className="mx-auto w-full max-w-page px-5 py-8">
+    <main className="mx-auto w-full max-w-page px-5 py-8 lg:h-full lg:overflow-y-auto">
       <h1 className="text-xl font-semibold tracking-tightest text-fg">Regression scorecard</h1>
       <p className="mt-1 text-sm text-fg-muted">
         {data ? `Last run ${formatTimestamp(data.generated_at)} · ${(data.total_ms / 1000).toFixed(1)}s total runtime` : 'Last run —'}
