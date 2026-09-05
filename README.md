@@ -49,7 +49,7 @@ npm run dev                            :: http://localhost:5173
 
 ```bat
 cd backend
-pytest                                 :: 35 tests
+pytest                                 :: 36 tests
 python scripts\run_scorecard.py        :: 38 questions + 6 scenarios
 ```
 
@@ -73,23 +73,26 @@ FDP where a naive model sees nothing.
 rules, illegal ones hard-filtered with a stated reason, the rest priced and ranked, with
 cancellation always shown as the baseline to read the others against.
 
-**Beyond the brief:** multi-step swap chains, near-miss relaxation, duty splitting,
-closure delay-to-reopen planning, future-resilience scoring, simultaneous disruptions,
-proactive alerts, notification drafting, multi-turn context, an MCP adapter, and a live
-scorecard.
+**Beyond the brief:** closure delay-to-reopen planning, joint assignment across
+simultaneous vacancies, duty splitting, future-resilience scoring, proactive alerts,
+drafted crew callouts, multi-turn context that survives an LLM outage, an MCP adapter,
+light/dark theming, and a live strict scorecard.
 
 ---
 
 ## The four things we would point a judge at
 
-### 1. Recovery chains, not just substitutions
+### 1. Joint assignment across simultaneous vacancies
 
-Most systems answer "no legal reserve is available" and stop. Real crew control does a
-cascade: move a rostered captain onto the broken pairing, then backfill the pairing they
-left. `engine/chains.py` runs a beam search to depth 3 over exactly that, validating
-every move against the full ruleset before extending it. Deliberately a beam search and
-not a solver — each step has to be readable by a controller, and "the optimiser said so"
-is not an explanation.
+Two sick calls at once is not two problems. Solve them separately and each picks the
+cheapest legal reserve — the *same* reserve. The plan looks optimal and cannot be flown.
+
+`engine/joint.py` solves them together: the cheapest combination in which no crew member
+is assigned twice. On the dataset's double-sick-call scenario that is the difference
+between an impossible ₹37,000 and the correct ₹42,500.
+
+Exhaustive over a cost-sorted shortlist rather than a solver — the search space is tiny,
+the optimum is exact, and every step stays explainable.
 
 ### 2. Near-miss analysis
 
@@ -105,6 +108,13 @@ and for a rest breach, the remedy is the delay that closes it:
 > Captain C-5820: only 11.75h rest after the new assignment on 2026-09-17, minimum 12h.
 > To use them, delay the first departure by **0h15m**, or release them from the adjacent
 > duty.
+
+Worth being straight about: this fires only when a vacancy has **no** legal cover, and
+the supplied week is generously crewed — the thinnest vacancy in the dataset still has
+five. So on this data it is a standby capability, exercised by tests rather than by the
+demo. The same is true of the multi-step swap search in `engine/chains.py`, which is
+gated on fewer than three direct covers. Both are correct and tested; neither is load-
+bearing here. We would rather say that than imply a feature the demo never reaches.
 
 ### 3. The grounding verifier
 
@@ -200,6 +210,31 @@ None of these were model failures — the LLM had refused or hedged correctly in
 They were gaps in the deterministic engine underneath, which is exactly where a strict
 grader earns its keep.
 
+## The console
+
+**One question, one answer, one decision.** A single input, the answer first, the
+reasoning one click away. A right-hand **watch list** runs without being asked — duty
+headroom, certifications lapsing, thin reserve cover, and the provided risk signals — so
+the desk sees trouble before the phone rings. It finds the dataset's one planted
+compliance breach (C-5417 rostered past a training expiry) unprompted.
+
+**Drafted callouts.** Ask for a notification and the console renders the message with a
+**Copy** button and a deliberately disabled *Send via crew comms*. Every time and station
+is read from the roster, including the day-2 down-route sign-on that is the one people
+miss. It is not sendable on purpose: the dataset carries no contact details for anyone,
+so "sending" would mean inventing an address — the exact fabrication this system exists
+to prevent. Delivery is a crew-comms integration; the advisor's job ends at a correct
+draft.
+
+**Light and dark.** A three-way control — system / light / dark — persisted per browser
+and resolved before first paint so there is no flash. Because every colour is a token and
+no component hardcodes one, light mode is a single block of redefinitions. The brand lime
+is unreadable as text on white (1.9:1), so light mode uses a deeper shade of the same hue
+at 6.33:1; dark mode keeps the bright brand colour. Every foreground/background pair in
+both themes was checked against WCAG AA.
+
+---
+
 ## Known divergence — scenario S4 (our honest failure case)
 
 The brief asks for a case we handle poorly, with analysis. This is the one we argue about.
@@ -233,9 +268,14 @@ still disagrees with its key, for the reason above.
   `valid_from` in the future — a generator artifact. The dataset's own `validate.py`
   ignores `valid_from` too. Enforcing it would fail a quarter of the fleet against a
   roster the dataset guarantees is legal. Documented in `rules/r06_certification.py`.
-- **Chain search is bounded** (beam 8, depth 3). A recovery needing four coordinated
-  moves will be missed. Configurable, but wider search costs latency we would rather
-  spend on the first answer.
+- **Chain search and relaxation rarely trigger on this dataset.** Both are gated on
+  scarcity (fewer than three covers, and zero covers, respectively) that a generously
+  crewed synthetic week never reaches. Chain search is additionally bounded at beam 8,
+  depth 3, so a recovery needing four coordinated moves would be missed.
+- **No precomputed legality matrix.** An earlier draft of this README claimed one. It
+  was a performance idea, and the performance never needed it — Tier 3 answers land in
+  10–40 ms computing from scratch. The unused table has been removed rather than left
+  in the schema implying a feature that does not exist.
 - **The router is regex-based** when the LLM is off. It covers all 38 supplied questions
   and refuses cleanly outside them; it is a safety net, not a parser.
 - **Sessions are in-process.** Multi-turn context does not survive a restart.
@@ -260,7 +300,7 @@ backend/
   app/api/                FastAPI routes + Pydantic mirrors of the TS contract
   mcp_server/             same tools over MCP
   scripts/                import_data · audit · run_scorecard · record_fixtures
-  tests/                  35 tests
+  tests/                  36 tests
 frontend/src/             React + TS console (types/api.ts is the contract)
 ARCHITECTURE.md           the LLM/deterministic boundary, drawn
 ```

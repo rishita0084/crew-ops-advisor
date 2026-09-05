@@ -42,7 +42,7 @@ true.** Everything below follows from that one line.
                      computes a fact; nothing below writes prose
         ════════════════════════════════╪════════════════════════════════
         ╔═══════════════════════════════▼═══════════════════════════════╗
-        ║                  D E T E R M I N I S T I C   C O R E           ║
+        ║                  D E T E R M I N I S T I C   C O R E          ║
         ║                                                               ║
         ║  Rules engine     7 modules, one per rule, each returning     ║
         ║                   {status, actual, limit, signed margin}      ║
@@ -51,7 +51,9 @@ true.** Everything below follows from that one line.
         ║  Candidates       every same-rank crew, fully rule-checked    ║
         ║  Chains           beam search over multi-step swaps           ║
         ║  Splitting        re-crew the illegal tail of a delayed duty  ║
-        ║  Relaxation       invert the margin: what would make it legal │
+        ║  Closure          delay-to-reopen per leg, FDP-checked        ║
+        ║  Joint            simultaneous vacancies, no crew used twice  ║
+        ║  Relaxation       invert the margin: what would make it legal ║
         ║  Cost             callout · deadhead · delay · cancellation   ║
         ║  Resilience       what recovery capacity survives the choice  ║
         ║  Ranking          hard-filter illegal, then rank legal        ║
@@ -71,8 +73,8 @@ true.** Everything below follows from that one line.
                         └───────────────┬──────────────┘
                                         │
                         ┌───────────────▼──────────────┐
-                        │   SQLite  (14 tables)         │
-                        │   loaded once into memory     │
+                        │   SQLite  (16 tables)        │
+                        │   loaded once into memory    │
                         └──────────────────────────────┘
 ```
 
@@ -137,9 +139,12 @@ Honest limits, since the brief asks:
   wrong for 15,000 crew. The repository is the single seam: it is the only module that
   touches SQL, so Postgres plus per-query loading replaces it without the engine noticing.
 - **Candidate enumeration is O(crew × rules)** — 2 ms here, minutes at fleet scale. The
-  fix is the index we already build: the precomputed legality matrix, maintained
-  incrementally on roster change rather than rebuilt.
+  fix is a precomputed legality matrix (every crew x pairing-day, maintained
+  incrementally on roster change). We deliberately did NOT build it: it answers a
+  performance problem this dataset does not have, and an unused index is worse than
+  none. It is the first thing we would add at real scale.
 - **Beam search over swap chains** is bounded by width and depth, not by fleet size, so
-  it scales; what grows is the candidate pool feeding it, which the matrix above solves.
+  it scales; what grows is the candidate pool feeding it, which the matrix above would
+  solve.
 - **Sessions are in-process.** Multi-turn context lives in a dict. Real deployment needs
   Redis or a database; nothing else in the design assumes a single process.

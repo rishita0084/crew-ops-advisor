@@ -1,7 +1,6 @@
 -- Normalized operational store. Rebuilt idempotently by scripts/import_data.py.
 PRAGMA foreign_keys = ON;
 
-DROP TABLE IF EXISTS legality_matrix;
 DROP TABLE IF EXISTS risk_signals;
 DROP TABLE IF EXISTS costs;
 DROP TABLE IF EXISTS rules;
@@ -147,15 +146,3 @@ CREATE TABLE risk_signals (
     disruption_risk_score REAL NOT NULL,
     drivers               TEXT NOT NULL   -- JSON array
 );
-
--- Precomputed crew x pairing-day legality. Turns Tier 2/3 into lookups.
-CREATE TABLE legality_matrix (
-    crew_id    TEXT NOT NULL,
-    pairing_id TEXT NOT NULL,
-    day_index  INTEGER NOT NULL,
-    legal      INTEGER NOT NULL,
-    failures   TEXT NOT NULL,       -- JSON array of RuleResult dicts
-    margins    TEXT NOT NULL,       -- JSON {rule_id: signed margin}
-    PRIMARY KEY (crew_id, pairing_id, day_index)
-);
-CREATE INDEX idx_lm_pair ON legality_matrix(pairing_id, day_index, legal);
