@@ -1,0 +1,847 @@
+<title>Crew Ops Advisor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================================
+   Tokens. Light is the base; dark redefines only colour.
+   Palette inherited from the product's own tokens.css so the deck and the
+   console read as one thing.
+   ========================================================================= */
+:root {
+  color-scheme: light;
+  --paper:      #f1f2ec;
+  --card:       #ffffff;
+  --well:       #e9eae2;
+  --ink:        #15170f;
+  --muted:      #575c4e;
+  --faint:      #83887a;
+  --rule:       #d5d8cc;
+  --rule-firm:  #b9bdae;
+  --accent:     #3f6b0a;
+  --accent-ink: #ffffff;
+  --accent-soft:#ebf6d8;
+  --breach:     #b3261e;
+  --breach-soft:#fdecea;
+  --amber:      #855206;
+  --amber-soft: #fdf3dc;
+  --info:       #1f5fbf;
+  --info-soft:  #e9f0fd;
+
+  --display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --body:    'Inter Tight', 'Inter', system-ui, sans-serif;
+  --mono:    'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+    --paper:      #0c0e0b;
+    --card:       #14170f;
+    --well:       #101208;
+    --ink:        #f3f4f0;
+    --muted:      #9aa09a;
+    --faint:      #6a706a;
+    --rule:       #262b24;
+    --rule-firm:  #3a4036;
+    --accent:     #8ce225;
+    --accent-ink: #0a0b0a;
+    --accent-soft:#1a2711;
+    --breach:     #ff6a58;
+    --breach-soft:#2c1512;
+    --amber:      #f2b33d;
+    --amber-soft: #2b2110;
+    --info:       #7fb0ff;
+    --info-soft:  #131c2b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:      #0c0e0b;
+  --card:       #14170f;
+  --well:       #101208;
+  --ink:        #f3f4f0;
+  --muted:      #9aa09a;
+  --faint:      #6a706a;
+  --rule:       #262b24;
+  --rule-firm:  #3a4036;
+  --accent:     #8ce225;
+  --accent-ink: #0a0b0a;
+  --accent-soft:#1a2711;
+  --breach:     #ff6a58;
+  --breach-soft:#2c1512;
+  --amber:      #f2b33d;
+  --amber-soft: #2b2110;
+  --info:       #7fb0ff;
+  --info-soft:  #131c2b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================================
+   Slide frame. Each slide is a flight-progress strip: a ruled header carrying
+   sequence, section and a Zulu stamp, then the body.
+   ========================================================================= */
+.deck { max-width: 1180px; margin: 0 auto; padding: 0 20px 96px; }
+
+.slide {
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--card);
+  margin: 0 0 20px;
+  scroll-margin-top: 16px;
+  overflow: hidden;
+}
+.strip {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--well);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.strip b { color: var(--accent); font-weight: 500; }
+.strip .zulu { margin-left: auto; font-variant-numeric: tabular-nums; }
+.body { padding: 30px 34px 34px; }
+
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(38px, 6.2vw, 64px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.02; }
+h2 { font-size: clamp(25px, 3.4vw, 35px); font-weight: 600; letter-spacing: -0.022em; line-height: 1.1; }
+h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+p  { margin: 0; max-width: 68ch; }
+.lead { font-size: 18px; color: var(--muted); margin-top: 14px; }
+.sub  { font-size: 15px; color: var(--muted); margin-top: 10px; }
+.note { font-size: 13px; color: var(--faint); margin-top: 14px; }
+.stack > * + * { margin-top: 16px; }
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.hl { color: var(--accent); font-weight: 600; }
+.bad { color: var(--breach); font-weight: 600; }
+
+/* ---- title slide ---- */
+.title-slide .body { padding: 62px 34px 56px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--accent);
+}
+.thesis {
+  margin-top: 26px; padding-left: 18px; border-left: 3px solid var(--accent);
+  font-size: 19px; line-height: 1.45; max-width: 60ch;
+}
+.meta {
+  margin-top: 30px; display: flex; flex-wrap: wrap; gap: 8px 26px;
+  font-family: var(--mono); font-size: 12px; color: var(--faint);
+}
+
+/* ---- generic grids ---- */
+.cols { display: grid; gap: 18px; }
+@media (min-width: 760px) { .cols-2 { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 900px) { .cols-3 { grid-template-columns: repeat(3, 1fr); } }
+
+.panel {
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 16px 18px; background: var(--paper);
+}
+.panel h3 { margin-bottom: 7px; }
+.panel p { font-size: 14px; color: var(--muted); }
+
+/* ---- figure tiles (used only where the number IS the point) ---- */
+.figs { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.fig { border-top: 2px solid var(--accent); padding-top: 11px; }
+.fig .n {
+  font-family: var(--mono); font-size: 30px; font-weight: 500;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block;
+}
+.fig .k {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint); margin-top: 3px; display: block;
+}
+.fig.warn { border-top-color: var(--amber); }
+.fig.stop { border-top-color: var(--breach); }
+
+/* ---- data table ---- */
+.tbl-wrap { overflow-x: auto; margin-top: 4px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+th {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint); font-weight: 500;
+  border-bottom-color: var(--rule-firm);
+}
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tr.pick td { background: var(--accent-soft); }
+tr.pick td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* ---- chips ---- */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 2px; border: 1px solid;
+  white-space: nowrap;
+}
+.chip.ok   { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.chip.no   { color: var(--breach); border-color: var(--breach); background: var(--breach-soft); }
+.chip.warn { color: var(--amber);  border-color: var(--amber);  background: var(--amber-soft); }
+.chip.info { color: var(--info);   border-color: var(--info);   background: var(--info-soft); }
+
+/* ---- transcript block: question then answer ---- */
+.qa { border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+.qa .q {
+  padding: 12px 16px; background: var(--well);
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px; font-weight: 500;
+}
+.qa .q::before {
+  content: 'ASK'; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  color: var(--accent); display: block; margin-bottom: 4px;
+}
+.qa .a { padding: 15px 16px; font-size: 14.5px; }
+.qa .a p + p { margin-top: 10px; }
+
+/* ---- rule check list ---- */
+.rules { display: grid; gap: 6px; margin-top: 12px; }
+.rulerow {
+  display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: baseline;
+  font-size: 13.5px; padding: 6px 0; border-bottom: 1px dotted var(--rule);
+}
+.rulerow:last-child { border-bottom: 0; }
+.rulerow .id { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+
+/* ---- the boundary diagram ---- */
+.boundary { display: grid; gap: 0; border: 1px solid var(--rule-firm); border-radius: 3px; overflow: hidden; }
+.tier { padding: 15px 18px; }
+.tier .cap {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.11em;
+  text-transform: uppercase; margin-bottom: 9px;
+}
+.tier.up   { background: var(--info-soft); }
+.tier.up .cap { color: var(--info); }
+.tier.down { background: var(--accent-soft); }
+.tier.down .cap { color: var(--accent); }
+.divider {
+  background: var(--ink); color: var(--paper);
+  padding: 9px 18px; font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  font-family: var(--mono); font-size: 11.5px; padding: 3px 9px;
+  border-radius: 2px; border: 1px solid var(--rule-firm); background: var(--card);
+}
+
+/* ---- flow (used for the trace) ---- */
+.flow { display: grid; gap: 0; font-size: 13.5px; }
+.step {
+  display: grid; grid-template-columns: 26px 96px 1fr; gap: 12px;
+  padding: 7px 0; border-bottom: 1px dotted var(--rule); align-items: baseline;
+}
+.step:last-child { border-bottom: 0; }
+.step .i { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.step .who { font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; }
+.step.py .who  { color: var(--accent); }
+.step.llm .who { color: var(--info); }
+
+/* ---- nav ---- */
+.rail {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 18px; background: var(--card);
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 11.5px; color: var(--faint);
+}
+.rail .bar { flex: 1; height: 2px; background: var(--rule); position: relative; }
+.rail .bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); width: 0; }
+.rail button {
+  font: inherit; color: var(--ink); background: var(--card);
+  border: 1px solid var(--rule-firm); border-radius: 2px;
+  padding: 3px 9px; cursor: pointer;
+}
+.rail button:hover { border-color: var(--accent); color: var(--accent); }
+.rail .count { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media print {
+  .rail { display: none; }
+  .slide { page-break-after: always; border: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="deck">
+
+  <!-- 01 ------------------------------------------------------------------ -->
+  <section class="slide title-slide" id="s1">
+    <div class="strip"><b>01</b> <span>Title</span> <span class="zulu">dCortex · Crew Ops</span></div>
+    <div class="body">
+      <span class="eyebrow">Agentic Crew Ops Advisor</span>
+      <h1>The answer has to<br>be right, not fluent.</h1>
+      <p class="thesis">
+        A conversational advisor for an airline crew-control desk. The language model
+        decides <em>what to ask</em>. It never decides <em>what is true</em>.
+      </p>
+      <div class="meta">
+        <span>38/38 supplied questions</span>
+        <span>6/6 scenarios</span>
+        <span>~497 ms full run</span>
+        <span>works with no API key</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 ------------------------------------------------------------------ -->
+  <section class="slide" id="s2">
+    <div class="strip"><b>02</b> <span>The problem</span> <span class="zulu">05:00Z</span></div>
+    <div class="body stack">
+      <h2>A captain calls in sick at five in the morning.</h2>
+      <p class="lead">
+        The controller has minutes to work out who is affected, which flights are now at
+        risk, who can legally be moved, who can be reached, and what it costs — across
+        rosters, duty clocks, reserve registers and a regulatory rulebook on separate screens.
+      </p>
+      <div class="cols cols-3">
+        <div class="panel">
+          <h3>Detecting is easy</h3>
+          <p>The broken flight is obvious. The four that break next are not.</p>
+        </div>
+        <div class="panel">
+          <h3>Legality is arithmetic</h3>
+          <p>Sixty duty hours in seven calendar days. An approximate answer is a violation.</p>
+        </div>
+        <div class="panel">
+          <h3>Expertise doesn't scale</h3>
+          <p>It lives in one senior controller's head, and degrades exactly when it matters.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 ------------------------------------------------------------------ -->
+  <section class="slide" id="s3">
+    <div class="strip"><b>03</b> <span>Why the obvious build fails</span> <span class="zulu">Design</span></div>
+    <div class="body stack">
+      <h2>Put the roster in the prompt and the model will answer confidently.</h2>
+      <p class="lead">
+        It will also, sometimes, be wrong — and a fluent wrong duty-hour calculation is
+        worse than no answer, because a controller has no way to see it happen.
+      </p>
+      <div class="qa">
+        <div class="q">Can Captain C-2087 cover P-2291 from 15 Sep?</div>
+        <div class="a">
+          <p><span class="chip no">RULE-DUTY-02 · FAIL</span></p>
+          <p class="mono" style="margin-top:10px">
+            accrued 51.83h &nbsp;+&nbsp; proposed 9.50h &nbsp;=&nbsp; <span class="bad">61.33h</span>
+            &nbsp;vs&nbsp; limit 60.00h
+          </p>
+          <p>Over by <strong>1h20m</strong> on 2026-09-15. That figure is arithmetic over a
+             28-day history, a planned roster and a calendar-day window. It is not a thing
+             to approximate.</p>
+        </div>
+      </div>
+      <p class="note">Every number on this slide came out of the engine, not out of a model.</p>
+    </div>
+  </section>
+
+  <!-- 04 ------------------------------------------------------------------ -->
+  <section class="slide" id="s4">
+    <div class="strip"><b>04</b> <span>Architecture · the boundary</span> <span class="zulu">Deliverable 4</span></div>
+    <div class="body stack">
+      <h2>Where the model stops and the arithmetic starts.</h2>
+      <div class="boundary">
+        <div class="tier up">
+          <div class="cap">Language &amp; intent — may reason, may not compute</div>
+          <div class="pills">
+            <span class="pill">reads the question</span>
+            <span class="pill">picks tools + arguments</span>
+            <span class="pill">phrases the answer</span>
+            <span class="pill">deterministic router narrows the menu first</span>
+            <span class="pill">answers alone when there is no model</span>
+          </div>
+        </div>
+        <div class="divider">
+          <span>▲ nothing above computes a fact</span>
+          <span>15 typed tools</span>
+          <span>nothing below writes prose ▼</span>
+        </div>
+        <div class="tier down">
+          <div class="cap">Deterministic core — computes every fact</div>
+          <div class="pills">
+            <span class="pill">7 rule modules</span>
+            <span class="pill">impact graph</span>
+            <span class="pill">copy-on-write state</span>
+            <span class="pill">candidates</span>
+            <span class="pill">joint assignment</span>
+            <span class="pill">closure planning</span>
+            <span class="pill">duty splitting</span>
+            <span class="pill">swap chains</span>
+            <span class="pill">relaxation</span>
+            <span class="pill">cost</span>
+            <span class="pill">resilience</span>
+            <span class="pill">ranking</span>
+          </div>
+        </div>
+      </div>
+      <div class="cols cols-3">
+        <div class="panel">
+          <h3>The model never sees the whole result</h3>
+          <p>It gets a digest. The full payload reaches the UI on a separate path, so the
+             cost on the card and the cost in the sentence cannot disagree.</p>
+        </div>
+        <div class="panel">
+          <h3>Answers without a tool call are discarded</h3>
+          <p>Ungrounded by construction, regardless of whether they happen to be right.</p>
+        </div>
+        <div class="panel">
+          <h3>It cannot go dark</h3>
+          <p><span class="mono">LLM_ENABLED=false</span> and every one of the 38 questions
+             still answers correctly, in 1–50 ms.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 ------------------------------------------------------------------ -->
+  <section class="slide" id="s5">
+    <div class="strip"><b>05</b> <span>One request, end to end</span> <span class="zulu">Trace</span></div>
+    <div class="body stack">
+      <h2>“Captain C-1042 just called in sick for tomorrow. What should I do?”</h2>
+      <div class="flow">
+        <div class="step llm"><span class="i">1</span><span class="who">LLM</span><span>calls <span class="mono">recommend_recovery(P-2291, Captain, out=C-1042)</span></span></div>
+        <div class="step py"><span class="i">2</span><span class="who">PYTHON</span><span>impact graph — C-1042 → P-2291 → 6 legs over 2 days → 486 passengers on day 1</span></div>
+        <div class="step py"><span class="i">3</span><span class="who">PYTHON</span><span>24 active captains evaluated against all seven rules</span></div>
+        <div class="step py"><span class="i">4</span><span class="who">PYTHON</span><span>19 rejected, each with its rule and its arithmetic</span></div>
+        <div class="step py"><span class="i">5</span><span class="who">PYTHON</span><span>cost model — reserve 18,500 · day-off 24,000 · DEL deadhead 41,200</span></div>
+        <div class="step py"><span class="i">6</span><span class="who">PYTHON</span><span>resilience — what cover survives this choice</span></div>
+        <div class="step py"><span class="i">7</span><span class="who">PYTHON</span><span>rank, then cancellation at 1,500,000 as the baseline</span></div>
+        <div class="step py"><span class="i">8</span><span class="who">PYTHON</span><span>33 evidence rows recorded</span></div>
+        <div class="step llm"><span class="i">9</span><span class="who">LLM</span><span>writes “Assign Captain C-3310 (reserve callout) — INR 18,500 …”</span></div>
+        <div class="step py"><span class="i">10</span><span class="who">VERIFIER</span><span>every id, rule and figure checked against the ledger → grounded</span></div>
+      </div>
+      <p class="note">Steps 2–8 are pure Python. Steps 1 and 9 are the only places the model appears.</p>
+    </div>
+  </section>
+
+  <!-- 06 ------------------------------------------------------------------ -->
+  <section class="slide" id="s6">
+    <div class="strip"><b>06</b> <span>Tier 1 · retrieval</span> <span class="zulu">Sample I/O</span></div>
+    <div class="body stack">
+      <h2>Tier 1 is boring on purpose.</h2>
+      <div class="cols cols-2">
+        <div class="qa">
+          <div class="q">Who is on reserve at BLR on 2026-09-15?</div>
+          <div class="a">
+            <p>12 reserve crew on call. Windows, ranks and reachability, straight from
+               <span class="mono">reserve_pool.json</span>.</p>
+            <p class="mono" style="font-size:13px;margin-top:10px">
+              C-3310 · Captain · 06:00–18:00Z · 45 min<br>
+              C-3305 · Captain · 00:00–05:30Z · 60 min<br>
+              C-3315 · Captain · 03:00–15:00Z · 50 min
+            </p>
+            <p class="note">2 ms · 12 evidence rows</p>
+          </div>
+        </div>
+        <div class="qa">
+          <div class="q">How many duty hours does C-1042 have left this week?</div>
+          <div class="a">
+            <p class="mono" style="font-size:13px">
+              accrued &nbsp;20.93 h &nbsp;/&nbsp; 7 calendar days<br>
+              limit &nbsp;&nbsp;&nbsp;60.00 h &nbsp;&nbsp;RULE-DUTY-02<br>
+              headroom <span class="hl">39.07 h</span>
+            </p>
+            <p class="note">Calendar days, not a rolling 168 hours — the distinction the
+               dataset is explicit about, and the one most implementations miss.</p>
+          </div>
+        </div>
+      </div>
+      <div class="figs">
+        <div class="fig"><span class="n">16/16</span><span class="k">Tier 1 exact</span></div>
+        <div class="fig"><span class="n">1–3 ms</span><span class="k">typical lookup</span></div>
+        <div class="fig"><span class="n">16</span><span class="k">normalised tables</span></div>
+        <div class="fig"><span class="n">9</span><span class="k">source files joined</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 ------------------------------------------------------------------ -->
+  <section class="slide" id="s7">
+    <div class="strip"><b>07</b> <span>Tier 2 · consequence</span> <span class="zulu">Sample I/O</span></div>
+    <div class="body stack">
+      <h2>Crew are rostered to pairings, not to flights.</h2>
+      <p class="lead">
+        Model it flight-first and one sick call loses three legs. Model it correctly and it
+        loses six — because one person was rostered for a two-day tour that overnights in Delhi.
+      </p>
+      <div class="cols cols-2">
+        <div class="panel">
+          <h3>Day 1 — immediate</h3>
+          <p class="mono" style="color:var(--ink)">DX412 · DX413 · DX588</p>
+          <p style="margin-top:6px">486 passengers. Releases at DEL.</p>
+        </div>
+        <div class="panel">
+          <h3>Day 2 — also uncovered</h3>
+          <p class="mono" style="color:var(--ink)">DX589 · DX590 · DX591</p>
+          <p style="margin-top:6px">Reports 04:00Z <em>at DEL</em>. Any replacement must already be there, or be flown there.</p>
+        </div>
+      </div>
+      <div class="rules">
+        <div class="rulerow">
+          <span class="chip no">FAIL</span><span class="id">RULE-DUTY-02</span>
+          <span>C-2087 — would exceed 60h/7d by <strong>1h20m</strong> (61.33h)</span>
+        </div>
+        <div class="rulerow">
+          <span class="chip no">FAIL</span><span class="id">RULE-QUAL-05</span>
+          <span>C-2091 — no A320 rating (holds ATR72)</span>
+        </div>
+        <div class="rulerow">
+          <span class="chip no">FAIL</span><span class="id">RULE-BASE-07</span>
+          <span>C-3305 — on-call 00:00–05:30Z does not cover a 06:00Z report</span>
+        </div>
+      </div>
+      <p class="note">Rejections are shown, not hidden. A controller needs to see that the
+         obvious person was considered and ruled out.</p>
+    </div>
+  </section>
+
+  <!-- 08 ------------------------------------------------------------------ -->
+  <section class="slide" id="s8">
+    <div class="strip"><b>08</b> <span>Tier 3 · recommendation</span> <span class="zulu">Sample I/O</span></div>
+    <div class="body stack">
+      <h2>Ranked, rule-checked, priced — and the rejections are part of the answer.</h2>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Action</th><th>Legal</th><th>Cost</th><th>Covers</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr class="pick">
+              <td class="num">1</td><td>Assign Capt C-3310 — reserve callout</td>
+              <td><span class="chip ok">7/7</span></td><td class="num">₹18,500</td><td class="num">6 of 6</td>
+              <td>BLR-based, A320, on-call 06:00–18:00Z, reachable in 45 min</td>
+            </tr>
+            <tr>
+              <td class="num">2</td><td>Assign Capt C-1526 — day-off callout</td>
+              <td><span class="chip ok">7/7</span></td><td class="num">₹24,000</td><td class="num">6 of 6</td>
+              <td>Legal, but a rest day is more expensive than a reserve</td>
+            </tr>
+            <tr>
+              <td class="num">5</td><td>Deadhead Capt C-2210 from DEL</td>
+              <td><span class="chip ok">7/7</span></td><td class="num">₹41,200</td><td class="num">6 of 6</td>
+              <td>Positioning + 3h delay to the first departure</td>
+            </tr>
+            <tr>
+              <td class="num">6</td><td>Cancel all six legs</td>
+              <td><span class="chip warn">baseline</span></td><td class="num">₹1,500,000</td><td class="num">0 of 6</td>
+              <td>Shown so every cheaper option can be read against it</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cols cols-2">
+        <div class="panel">
+          <h3>Illegal options are filtered, never penalised</h3>
+          <p>There is no scoring in which a large enough saving outweighs a rule breach.
+             19 candidates were removed before ranking began.</p>
+        </div>
+        <div class="panel">
+          <h3>Resilience is on the card</h3>
+          <p>“4 of 5 legal captains remain; 4 upcoming pairings would be left with one or no
+             cover.” The cheapest option and the wisest one are not always the same.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 ------------------------------------------------------------------ -->
+  <section class="slide" id="s9">
+    <div class="strip"><b>09</b> <span>Insight · closures</span> <span class="zulu">₹3.0M → ₹580k</span></div>
+    <div class="body stack">
+      <h2>A closed station doesn't uncrew a flight. It strands it.</h2>
+      <p class="lead">
+        Nobody is missing. The aircraft simply cannot move. So the question per leg is not
+        “who replaces them” — it is “how long until it can go, and does the crew's duty
+        survive that wait?”
+      </p>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>Leg</th><th>Pairing</th><th>Blocked</th><th>Min delay</th><th>FDP after</th><th>Limit</th><th>Verdict</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">DX462</td><td class="num">P-2232</td><td class="num">arr 08:45Z</td><td class="num">5.75 h</td><td class="num">11.00 h</td><td class="num">13.0 h</td><td><span class="chip ok">delay it</span></td></tr>
+            <tr><td class="num">DX402</td><td class="num">P-2204</td><td class="num">arr 08:45Z</td><td class="num">5.75 h</td><td class="num">17.00 h</td><td class="num">12.0 h</td><td><span class="chip no">re-crew tail</span></td></tr>
+            <tr><td class="num">DX424</td><td class="num">P-2211</td><td class="num">arr 12:45Z</td><td class="num">1.75 h</td><td class="num">13.00 h</td><td class="num">12.0 h</td><td><span class="chip no">re-crew tail</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="figs">
+        <div class="fig"><span class="n">13</span><span class="k">legs blocked</span></div>
+        <div class="fig"><span class="n">1,836</span><span class="k">passengers</span></div>
+        <div class="fig"><span class="n">₹580,050</span><span class="k">our plan</span></div>
+        <div class="fig stop"><span class="n">₹3,000,000</span><span class="k">cancel instead</span></div>
+      </div>
+      <p class="note">
+        Our first build treated a closure as a crew shortage and recommended cancelling
+        everything. Modelling each disruption as what it actually <em>is</em> — a seat
+        emptied, a flight stranded, a duty stretched — is worth ₹2.4 million on one event.
+      </p>
+    </div>
+  </section>
+
+  <!-- 10 ------------------------------------------------------------------ -->
+  <section class="slide" id="s10">
+    <div class="strip"><b>10</b> <span>Insight · simultaneous vacancies</span> <span class="zulu">One body, two aircraft</span></div>
+    <div class="body stack">
+      <h2>Two sick calls are not two problems.</h2>
+      <p class="lead">
+        Solve them separately and each picks the cheapest legal reserve — the same reserve.
+        The plan looks optimal and cannot be flown.
+      </p>
+      <div class="cols cols-2">
+        <div class="panel" style="border-color:var(--breach)">
+          <h3 style="color:var(--breach)">Solved separately</h3>
+          <p class="mono" style="color:var(--ink)">
+            P-2205 → C-3305 &nbsp;₹18,500<br>
+            P-2212 → C-3305 &nbsp;₹18,500
+          </p>
+          <p style="margin-top:8px">Total ₹37,000 — and physically impossible.</p>
+        </div>
+        <div class="panel" style="border-color:var(--accent)">
+          <h3 style="color:var(--accent)">Solved jointly</h3>
+          <p class="mono" style="color:var(--ink)">
+            P-2205 → C-3305 &nbsp;₹18,500<br>
+            P-2212 → C-1017 &nbsp;₹24,000
+          </p>
+          <p style="margin-top:8px">Total <strong>₹42,500</strong> — matches the answer key.</p>
+        </div>
+      </div>
+      <p class="sub">
+        Cheapest combination subject to every vacancy getting a distinct crew member.
+        Exhaustive over a cost-sorted shortlist, so it is provably optimal — and every step
+        stays explainable, which a solver would not be.
+      </p>
+    </div>
+  </section>
+
+  <!-- 11 ------------------------------------------------------------------ -->
+  <section class="slide" id="s11">
+    <div class="strip"><b>11</b> <span>Explainability</span> <span class="zulu">Deliverable 3</span></div>
+    <div class="body stack">
+      <h2>The system structurally cannot state a fact it did not compute.</h2>
+      <p class="lead">
+        Every engine operation appends to an evidence ledger — source, fact, value. After
+        the model writes its sentence, a verifier extracts every crew id, flight number,
+        pairing, rule id and money figure from the prose and checks each one against that
+        ledger. Unbacked claims are flagged in the UI, not silently dropped.
+      </p>
+      <div class="cols cols-2">
+        <div class="panel">
+          <h3>A real escape it caught</h3>
+          <p>The model wrote <span class="mono">C&#8209;3310</span> using a Unicode
+             non-breaking hyphen. The <span class="mono">C-\d{4}</span> check didn't match,
+             so it passed silently. Ids are now dash-normalised before checking — with a test.</p>
+        </div>
+        <div class="panel">
+          <h3>And when it doesn't know</h3>
+          <p>It returns <span class="mono">cannot_answer</span> with what was missing. The
+             brief scores that above a confident guess. So do we.</p>
+        </div>
+      </div>
+      <p class="note">This is not “we prompt it carefully”. It is a gate the prose has to pass.</p>
+    </div>
+  </section>
+
+  <!-- 12 ------------------------------------------------------------------ -->
+  <section class="slide" id="s12">
+    <div class="strip"><b>12</b> <span>Proof</span> <span class="zulu">Run it live</span></div>
+    <div class="body stack">
+      <h2>We grade ourselves against your answer keys, on stage, in half a second.</h2>
+      <div class="figs">
+        <div class="fig"><span class="n">16/16</span><span class="k">Tier 1</span></div>
+        <div class="fig"><span class="n">14/14</span><span class="k">Tier 2</span></div>
+        <div class="fig"><span class="n">8/8</span><span class="k">Tier 3</span></div>
+        <div class="fig"><span class="n">6/6</span><span class="k">scenarios</span></div>
+        <div class="fig"><span class="n">497 ms</span><span class="k">full run</span></div>
+      </div>
+      <p class="sub">
+        One explicit checker per question — the exact field, the exact value. No substring
+        matching. Answer keys are fixtures only: nothing in the application reads them and
+        nothing caches their answers.
+      </p>
+      <div class="panel" style="border-color:var(--amber-soft);background:var(--amber-soft)">
+        <h3>Our first grader was lazy, and it hid four real bugs</h3>
+        <p style="color:var(--ink)">
+          It accepted ~80% of expected values appearing anywhere in the output, and reported
+          a clean sheet. Making the checks exact surfaced, immediately: two aircraft assigned
+          the same captain · closures modelled as crew shortages · exclusion reasons missing
+          their rule ids · a recovery intent that never matched.
+          <strong>A weak test is worse than no test, because it turns “unknown” into “verified”.</strong>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 ------------------------------------------------------------------ -->
+  <section class="slide" id="s13">
+    <div class="strip"><b>13</b> <span>Honest failure</span> <span class="zulu">Deliverable 6</span></div>
+    <div class="body stack">
+      <h2>Scenario S4 — where we disagree with your answer key.</h2>
+      <div class="cols cols-2">
+        <div class="panel">
+          <h3>The key says</h3>
+          <p class="mono" style="font-size:20px;color:var(--ink)">₹75,000</p>
+          <p style="margin-top:6px">Fresh complement re-crews DX404 after the delay.</p>
+        </div>
+        <div class="panel">
+          <h3>We say</h3>
+          <p class="mono" style="font-size:20px;color:var(--ink)">₹114,000</p>
+          <p style="margin-top:6px">The same callout, plus 6 × ₹6,500 positioning.</p>
+        </div>
+      </div>
+      <p class="sub">
+        DX404 departs <strong>MAA</strong>. Every crew member in the dataset is based at BLR
+        or DEL — there are zero MAA-based crew. A fresh complement has to be flown there
+        (feasible on DX453, arriving 09:00Z against an 11:45Z report), and
+        <span class="mono">costs.json</span> prices that at ₹6,500 a head.
+      </p>
+      <p class="sub">
+        We chose not to quietly match the key. The engine itemises both parts — the callout
+        subtotal matches you exactly — and the scorecard tags S4 as a divergence whether or
+        not it passes. <strong>We may be wrong.</strong> But silently reporting a number we
+        believe is ₹39,000 short is the exact failure this system exists to prevent.
+      </p>
+      <p class="note">
+        Also honest: swap-chain search and near-miss relaxation are built and tested, and
+        never fire on this dataset — the thinnest vacancy still has five legal covers. We'd
+        rather say so than imply a feature the demo never reaches.
+      </p>
+    </div>
+  </section>
+
+  <!-- 14 ------------------------------------------------------------------ -->
+  <section class="slide" id="s14">
+    <div class="strip"><b>14</b> <span>Two doors, one engine</span> <span class="zulu">System of action</span></div>
+    <div class="body stack">
+      <h2>A crew desk does not want another tab.</h2>
+      <p class="lead">
+        The console answers over HTTP. Any MCP client answers over stdio. Both land on the
+        same dispatch — one rules engine, one cost model, one source of truth — and a test
+        asserts the two return identical answers, so they cannot drift apart.
+      </p>
+      <div class="cols cols-2">
+        <div class="panel">
+          <h3>Our console</h3>
+          <p>Ask, read the answer, expand the reasoning. A watch list runs unprompted and
+             found the dataset's one planted compliance breach — C-5417 rostered past a
+             training expiry — without being asked.</p>
+        </div>
+        <div class="panel">
+          <h3>Claude Desktop, an IDE, another agent</h3>
+          <p>15 tools, evidence attached to every result. Airlines already fund MCP-exposed
+             crew tooling for quals and pay. Nobody has put the <em>recovery reasoning</em>
+             behind that interface. That is the layer this adds.</p>
+        </div>
+      </div>
+      <p class="note">Nothing listens on a port for MCP — the client owns the process. It keeps working when the API is stopped.</p>
+    </div>
+  </section>
+
+  <!-- 15 ------------------------------------------------------------------ -->
+  <section class="slide" id="s15">
+    <div class="strip"><b>15</b> <span>Close</span> <span class="zulu">06:00Z</span></div>
+    <div class="body stack">
+      <h2>Fast, right, and honest when it isn't sure.</h2>
+      <p class="lead">
+        The brief says the winning advisor is the one a real crew controller would want
+        beside them at 6 a.m. on a bad day. That is the whole specification, and it is three
+        separate promises.
+      </p>
+      <div class="cols cols-3">
+        <div class="panel">
+          <h3>Fast</h3>
+          <p>Engine answers in 10–40 ms. The structured result is complete before the model
+             writes its first token.</p>
+        </div>
+        <div class="panel">
+          <h3>Right</h3>
+          <p>38/38 against your keys, checked field by field. Legality is arithmetic, and
+             arithmetic is not the model's job.</p>
+        </div>
+        <div class="panel">
+          <h3>Says so when it isn't</h3>
+          <p><span class="mono">cannot_answer</span>, flagged ungrounded claims, and one
+             open disagreement with your own key.</p>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:22px">
+        <span class="mono" style="color:var(--accent)">github.com/rishita0084/crew-ops-advisor</span>
+        &nbsp;·&nbsp; README · ARCHITECTURE · DESIGN · MCP
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<nav class="rail" aria-label="Deck navigation">
+  <span class="count"><span id="cur">1</span>/15</span>
+  <span class="bar"><i id="fill"></i></span>
+  <button id="prev" type="button">← Prev</button>
+  <button id="next" type="button">Next →</button>
+  <span id="hint">arrow keys</span>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var cur = document.getElementById('cur');
+  var fill = document.getElementById('fill');
+  var i = 0;
+
+  function paint() {
+    cur.textContent = i + 1;
+    fill.style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    paint();
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(i + 1); });
+  document.getElementById('prev').addEventListener('click', function () { go(i - 1); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(i - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  // keep the counter honest when the reader scrolls by hand
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { i = slides.indexOf(en.target); paint(); }
+      });
+    }, { threshold: 0.5 });
+    slides.forEach(function (s) { io.observe(s); });
+  }
+  paint();
+})();
+</script>

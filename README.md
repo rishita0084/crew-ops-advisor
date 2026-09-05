@@ -12,6 +12,10 @@ before it reaches the controller.
 Tier 1  16/16     Tier 2  14/14     Tier 3  8/8     Scenarios  6/6     ~400 ms
 ```
 
+**Presentation deck:** [`DECK.html`](DECK.html) — open it in a browser, arrow keys to
+navigate. Fifteen slides: the problem, the LLM/deterministic boundary, worked Tier 1–3
+examples, two non-obvious findings, and the case we get wrong.
+
 Computed live from the supplied answer keys, never hardcoded, and graded **strictly** --
 one explicit checker per question comparing the exact field, not fuzzy text matching. Run
 it yourself: `python scripts/audit.py` for the per-question detail,
@@ -509,6 +513,7 @@ ARCHITECTURE.md           the LLM/deterministic boundary, drawn
 DESIGN.md                 why it is built this way: trade-offs, decisions we
                           changed, extension points, known weaknesses
 MCP.md                    connecting the engine to any MCP client, and why
+DECK.html                 the presentation deck (open in a browser)
 ```
 
 `internal/held_out_scenarios.json` shipped with the dataset by mistake — its own README
