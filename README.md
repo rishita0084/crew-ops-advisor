@@ -293,6 +293,87 @@ still disagrees with its key, for the reason above.
 
 ---
 
+## Further optimisation
+
+What we would build next, in the order we would build it. Each is scoped rather than
+aspirational — we know where it goes and roughly what it costs.
+
+### 1. Make the two dormant features reachable
+
+`engine/chains.py` (multi-step swap cascades) and `engine/relaxation.py` (near-miss
+analysis) are implemented, tested and correct — and never fire on this dataset, because
+both are gated on scarcity a generously crewed synthetic week never reaches. The thinnest
+vacancy still has five legal covers.
+
+Two changes, and they pull in different directions:
+
+- **Relaxation should always run.** A near-miss is useful information even when a legal
+  option exists: *"C-3310 covers it at ₹18,500, and for reference C-2087 was 1h20m short"*
+  tells a controller how much slack the operation actually has. Costs ~10 ms.
+- **Chain search should keep its gate but earn a real trigger.** A swap cascade when five
+  reserves are idle is noise. The honest fix is a scenario where cover genuinely runs
+  out — a base-wide event, or a reserve pool drawn down by an earlier decision — so the
+  feature has a reason to speak.
+
+### 2. Precomputed legality matrix
+
+Every crew member × every pairing-day, evaluated against all seven rules once and cached,
+turning `enumerate_candidates` from a computation into an index lookup.
+
+```
+150 crew × ~80 pairing-days ≈ 12,000 verdicts, each with its per-rule margins
+```
+
+**We deliberately have not built it, and the reason matters:** it is a performance answer
+to a problem this dataset does not have. Tier-3 recovery lands in 10–40 ms computing from
+scratch, and an unused index is worse than no index — it is a second source of truth that
+can silently fall out of step with the rules that produced it. We removed the empty table
+rather than leave the schema implying a feature that did not exist.
+
+At real airline scale the calculus inverts. With 15,000 crew, enumeration goes from
+milliseconds to minutes and the matrix becomes necessary. The design work that makes it
+tractable is **incremental maintenance**, not the initial build:
+
+| Event | Rows to recompute |
+|---|---|
+| Roster change for one crew member | that crew member's rows only |
+| Duty clock tick (end of a duty) | that crew member's next 7 and 28 days |
+| Certificate renewal or lapse | that crew member × pairing-days inside the validity change |
+| Rule parameter change | everything — but that is a rare, planned event |
+
+Two properties the current design already has make this a contained change: the repository
+is the only module that touches SQL, and every rule returns its margins alongside its
+verdict, so a cached row can carry the *why* and not just the *whether*. The matrix would
+slot behind `enumerate_candidates` without the engine above it noticing.
+
+The invalidation is the hard part, and getting it wrong means answering "legal" from a
+stale row — which is precisely the failure mode this whole system exists to prevent. That
+is why it is a deliberate later step and not a hackathon shortcut.
+
+### 3. Deeper and wider recovery search
+
+Chain search is bounded at beam 8, depth 3, so a recovery needing four coordinated moves
+is missed. Widening it is a config change; affording it is what the matrix above buys.
+
+### 4. Durable sessions
+
+Multi-turn context lives in a process dict. Redis or a table would survive a restart and
+allow more than one server process. Nothing else in the design assumes a single process.
+
+### 5. Overnight deadhead positioning
+
+Reserve positioning currently considers same-day flights only. Real recovery sometimes
+positions a crew member the night before, which needs a hotel cost (`costs.json` already
+carries the rate) and a rest calculation from the positioning arrival.
+
+### 6. Malformed-input tolerance
+
+The brief calls this a bonus and the supplied data is clean, so we assumed it. Production
+data is not clean, and the importer would need to quarantine bad rows rather than fail the
+load.
+
+---
+
 ## Repository layout
 
 ```
@@ -315,6 +396,7 @@ frontend/src/             React + TS console (types/api.ts is the contract)
 ARCHITECTURE.md           the LLM/deterministic boundary, drawn
 DESIGN.md                 why it is built this way: trade-offs, decisions we
                           changed, extension points, known weaknesses
+MCP.md                    connecting the engine to any MCP client, and why
 ```
 
 `internal/held_out_scenarios.json` shipped with the dataset by mistake — its own README
@@ -325,15 +407,11 @@ runs only `questions.json` and `scenarios.json`.
 
 ## Using it from an MCP client
 
-The engine is exposed twice from one implementation — REST for the console, MCP for
-anything else. `mcp` is already in `requirements.txt`, so it is installed:
-
-```bat
-cd backend
-python -m mcp_server.index          :: speaks MCP over stdio
-```
-
-Claude Desktop / any MCP client:
+The engine is exposed twice from one implementation — HTTP for our console, MCP for
+anything else. Same 15 tools, same rules engine, zero duplicated logic:
+`mcp_server/index.py` is thin typed wrappers that all forward to the same `dispatch()` the
+REST API calls, and a test asserts both doors return identical answers so they cannot
+drift apart.
 
 ```json
 {"mcpServers": {"crew-ops": {
@@ -341,20 +419,13 @@ Claude Desktop / any MCP client:
     "args": ["<repo>/backend/mcp_server/index.py"]}}}
 ```
 
-> **Use the absolute script path, not `-m mcp_server.index`.** Claude Desktop launches the
-> process without applying a working directory, so the module form cannot resolve the
-> package: the server exits immediately and the client reports only "Server disconnected".
-> Everything the server touches is resolved from `__file__`, so the script path works from
-> any directory.
+Then ask Claude Desktop *"Using crew-ops, Captain C-1042 just called in sick — what should
+I do?"* and it answers from this engine. The API server does not need to be running; the
+client launches its own process and talks over stdin/stdout.
 
-Same 15 tools, same rules engine, zero duplicated logic — `mcp_server/index.py` is thin
-typed wrappers that all delegate to the same `dispatch()` the REST API uses. A test
-asserts the two doors return byte-identical answers, so they cannot drift apart.
-
-> **Dependency note:** the MCP SDK requires `starlette` 1.x, which FastAPI < 0.141
-> rejects. `requirements.txt` pins `fastapi==0.141.1` so both resolve together. Installing
-> `mcp` into an older FastAPI environment will break the API with
-> `Router.__init__() got an unexpected keyword argument 'on_startup'`.
+**Full guide: [MCP.md](MCP.md)** — why you would want it, the complete tool list, transport
+detail, and the troubleshooting that matters (chiefly: use the absolute script path, not
+`-m mcp_server.index`, because the client does not apply a working directory).
 
 ---
 
