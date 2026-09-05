@@ -303,6 +303,8 @@ backend/
   tests/                  36 tests
 frontend/src/             React + TS console (types/api.ts is the contract)
 ARCHITECTURE.md           the LLM/deterministic boundary, drawn
+DESIGN.md                 why it is built this way: trade-offs, decisions we
+                          changed, extension points, known weaknesses
 ```
 
 `internal/held_out_scenarios.json` shipped with the dataset by mistake — its own README
